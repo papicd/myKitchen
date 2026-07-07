@@ -1,0 +1,48 @@
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 120;
+  min-width: min(360px, calc(100vw - 32px));
+  max-width: 420px;
+  border: 1px solid #e1d5b4;
+  border-radius: 14px;
+  background: #fff9ea;
+  box-shadow: 0 14px 30px rgba(31, 37, 40, 0.14);
+  padding: 14px 16px;
+  color: #5b4720;
+  animation: slideIn 0.18s ease;
+}
+
+.title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.message {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .toast {
+    right: 16px;
+    left: 16px;
+    bottom: 16px;
+    min-width: auto;
+  }
+}
+

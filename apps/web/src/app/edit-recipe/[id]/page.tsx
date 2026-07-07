@@ -1,0 +1,274 @@
+"use client";
+
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
+import { PageSpinner } from "../../../components/PageSpinner";
+import { SuccessDialog } from "../../../components/SuccessDialog";
+import { getRecipe, updateRecipe } from "../../../lib/api";
+import { useAuth } from "../../../lib/auth";
+import { RecipeDetails } from "../../../lib/types";
+import styles from "../../page.module.scss";
+
+type MediaItem = { type: 'image' | 'video'; url: string };
+type LinkItem = { label: string; url: string };
+
+export default function EditRecipePage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const { user, token, isLoggedIn } = useAuth();
+  const [recipe, setRecipe] = useState<RecipeDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [mediaUrl, setMediaUrl] = useState("");
+  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
+
+  const [linkItems, setLinkItems] = useState<LinkItem[]>([]);
+  const [linkLabel, setLinkLabel] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+
+  useEffect(() => {
+    if (!isLoggedIn || !token) return;
+
+    getRecipe(params.id, token)
+      .then((data) => {
+        setRecipe(data);
+        setMediaItems(data.media || []);
+        setLinkItems(data.links || []);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Recept nije moguce ucitati");
+      })
+      .finally(() => setLoading(false));
+  }, [isLoggedIn, params.id, token]);
+
+  const canEdit = recipe && user && (user.isAdmin || recipe.createdBy === user.id);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!recipe || !token || !canEdit) return;
+
+    setError("");
+    setSubmitting(true);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    try {
+      await updateRecipe(
+        params.id,
+        {
+          title: String(formData.get("title")),
+          shortDescription: String(formData.get("shortDescription")),
+          description: String(formData.get("description")),
+          ingredients: String(formData.get("ingredients")).split(/[,\n]+/),
+          steps: String(formData.get("steps")).split(/\n+/),
+          preparationTime: String(formData.get("preparationTime")),
+          servings: String(formData.get("servings")),
+          media: mediaItems.length > 0 ? mediaItems : undefined,
+          links: linkItems.length > 0 ? linkItems : undefined,
+        },
+        token,
+      );
+      setShowSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Izmena nije uspela");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function addMedia() {
+    if (!mediaUrl.trim()) {
+      setError("Unesite URL slike ili videa");
+      return;
+    }
+    setMediaItems([...mediaItems, { type: mediaType, url: mediaUrl }]);
+    setMediaUrl("");
+  }
+
+  function removeMedia(index: number) {
+    setMediaItems(mediaItems.filter((_, i) => i !== index));
+  }
+
+  function addLink() {
+    if (!linkLabel.trim() || !linkUrl.trim()) {
+      setError("Unesite naslov i URL linka");
+      return;
+    }
+    setLinkItems([...linkItems, { label: linkLabel, url: linkUrl }]);
+    setLinkLabel("");
+    setLinkUrl("");
+  }
+
+  function removeLink(index: number) {
+    setLinkItems(linkItems.filter((_, i) => i !== index));
+  }
+
+  if (loading) {
+    return (
+      <main className={styles.page}>
+        <PageSpinner label="Ucitavanje recepta..." />
+      </main>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <main className={styles.page}>
+        <section className={styles.card}>
+          <h1>Izmena recepta trazi prijavu</h1>
+          <div className={styles.actions}>
+            <Link href="/login">Prijava</Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!recipe || !canEdit) {
+    return (
+      <main className={styles.page}>
+        <section className={styles.card}>
+          <h1>Nemate dozvolu za izmenu ovog recepta</h1>
+          <div className={styles.actions}>
+            <Link href="/recipes">Nazad na recepte</Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <>
+      {showSuccess ? (
+        <SuccessDialog
+          title="Recept je obnovljen!"
+          description="Sve promene su uspešno sačuvane."
+          actionLabel="Pregled"
+          onAction={() => router.push(`/recipes/${params.id}`)}
+        />
+      ) : null}
+
+      <main className={styles.page}>
+        <header className={styles.pageHeader}>
+          <div>
+            <h1>Izmeni recept</h1>
+            <p>Ažuriraj detalje, mediju i spoljne linkove.</p>
+          </div>
+        </header>
+
+        <form className={styles.form} onSubmit={handleSubmit}>
+          <div className={styles.field}>
+            <label htmlFor="title">Naziv recepta</label>
+            <input id="title" name="title" defaultValue={recipe.title} required />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="shortDescription">Kratak opis</label>
+            <input id="shortDescription" name="shortDescription" defaultValue={recipe.shortDescription} required />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="description">Detaljan opis</label>
+            <textarea id="description" name="description" defaultValue={recipe.description} required />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="ingredients">Sastojci, odvojeni zarezom</label>
+            <textarea id="ingredients" name="ingredients" defaultValue={recipe.ingredients.join(", ")} required />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="steps">Koraci pripreme, svaki u novom redu</label>
+            <textarea id="steps" name="steps" defaultValue={recipe.steps.join("\n")} required />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="preparationTime">Vreme pripreme</label>
+            <input id="preparationTime" name="preparationTime" defaultValue={recipe.preparationTime} required />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="servings">Broj porcija</label>
+            <input id="servings" name="servings" defaultValue={recipe.servings} required />
+          </div>
+
+          <div className={styles.section}>
+            <h3>Medija (opciono)</h3>
+            <p className={styles.hint}>Dodaj slike ili video linkove recepta.</p>
+            <div className={styles.field}>
+              <label>Tip medije</label>
+              <select value={mediaType} onChange={(e) => setMediaType(e.target.value as 'image' | 'video')}>
+                <option value="image">Slika</option>
+                <option value="video">Video (YouTube)</option>
+              </select>
+            </div>
+            <div className={styles.field}>
+              <label>URL medije</label>
+              <input
+                value={mediaUrl}
+                onChange={(e) => setMediaUrl(e.target.value)}
+                placeholder={mediaType === 'image' ? 'https://...' : 'https://youtube.com/watch?v=...'}
+              />
+            </div>
+            <button type="button" className={styles.secondaryBtn} onClick={addMedia}>
+              + Dodaj mediju
+            </button>
+            {mediaItems.length > 0 && (
+              <div className={styles.itemsList}>
+                {mediaItems.map((item, idx) => (
+                  <div key={idx} className={styles.listItem}>
+                    <span>{item.type === 'image' ? '🖼' : '🎬'} {item.url}</span>
+                    <button type="button" className={styles.removeBtn} onClick={() => removeMedia(idx)}>
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className={styles.section}>
+            <h3>Spoljni linkovi (opciono)</h3>
+            <p className={styles.hint}>Dodaj linkove na spoljne resurse kao što su YouTube videi ili drugi recepti.</p>
+            <div className={styles.field}>
+              <label>Naslov linka</label>
+              <input
+                value={linkLabel}
+                onChange={(e) => setLinkLabel(e.target.value)}
+                placeholder="Npr: Videopriprema"
+              />
+            </div>
+            <div className={styles.field}>
+              <label>URL linka</label>
+              <input
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+            <button type="button" className={styles.secondaryBtn} onClick={addLink}>
+              + Dodaj link
+            </button>
+            {linkItems.length > 0 && (
+              <div className={styles.itemsList}>
+                {linkItems.map((item, idx) => (
+                  <div key={idx} className={styles.listItem}>
+                    <span>🔗 {item.label}: {item.url}</span>
+                    <button type="button" className={styles.removeBtn} onClick={() => removeLink(idx)}>
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {error ? <p className={styles.error}>{error}</p> : null}
+          <button className={styles.button} disabled={submitting}>
+            {submitting ? "Čuvanje..." : "Sačuvaj izmene"}
+          </button>
+        </form>
+      </main>
+    </>
+  );
+}
+
