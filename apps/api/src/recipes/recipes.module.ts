@@ -1,0 +1,25 @@
+import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
+import { UsersModule } from '../users/users.module';
+import { Recipe, RecipeSchema } from './schemas/recipe.schema';
+import { RecipesController } from './recipes.controller';
+import { RecipesService } from './recipes.service';
+
+@Module({
+  imports: [
+    UsersModule,
+    MongooseModule.forFeature([{ name: Recipe.name, schema: RecipeSchema }]),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET') ?? 'dev-secret-change-me',
+      }),
+    }),
+  ],
+  controllers: [RecipesController],
+  providers: [RecipesService],
+})
+export class RecipesModule {}
