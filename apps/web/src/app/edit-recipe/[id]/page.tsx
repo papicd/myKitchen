@@ -7,6 +7,7 @@ import { PageSpinner } from "../../../components/PageSpinner";
 import { SuccessDialog } from "../../../components/SuccessDialog";
 import { getRecipe, updateRecipe } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
+import { useTranslation } from "../../../lib/useTranslation";
 import { RecipeDetails } from "../../../lib/types";
 import styles from "../../page.module.scss";
 
@@ -17,6 +18,7 @@ export default function EditRecipePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { user, token, isLoggedIn } = useAuth();
+  const { t } = useTranslation();
   const [recipe, setRecipe] = useState<RecipeDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -41,10 +43,10 @@ export default function EditRecipePage() {
         setLinkItems(data.links || []);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Recept nije moguce ucitati");
+        setError(err instanceof Error ? err.message : t("cannotLoadRecipe"));
       })
       .finally(() => setLoading(false));
-  }, [isLoggedIn, params.id, token]);
+  }, [isLoggedIn, params.id, token, t]);
 
   const canEdit = recipe && user && (user.isAdmin || recipe.createdBy === user.id);
 
@@ -75,7 +77,7 @@ export default function EditRecipePage() {
       );
       setShowSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Izmena nije uspela");
+      setError(err instanceof Error ? err.message : t("updateFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -83,7 +85,7 @@ export default function EditRecipePage() {
 
   function addMedia() {
     if (!mediaUrl.trim()) {
-      setError("Unesite URL slike, videa ili PDF-a");
+      setError(t('enterMediaUrl'));
       return;
     }
     setMediaItems([...mediaItems, { type: mediaType, url: mediaUrl }]);
@@ -121,20 +123,20 @@ export default function EditRecipePage() {
               const media = detectMediaType(file);
 
               if (!media) {
-                reject(new Error(`Format fajla nije podrzan: ${file.name}`));
+                reject(new Error(t('unsupportedFileFormat', { fileName: file.name })));
                 return;
               }
 
               const reader = new FileReader();
               reader.onload = () => {
                 if (typeof reader.result !== "string") {
-                  reject(new Error(`Nije moguce ucitati fajl: ${file.name}`));
+                  reject(new Error(t('cannotLoadFile', { fileName: file.name })));
                   return;
                 }
 
                 resolve({ type: media, url: reader.result });
               };
-              reader.onerror = () => reject(new Error(`Greska pri citanju fajla: ${file.name}`));
+              reader.onerror = () => reject(new Error(t('errorReadingFile', { fileName: file.name })));
               reader.readAsDataURL(file);
             }),
         ),
@@ -143,7 +145,7 @@ export default function EditRecipePage() {
       setMediaItems((prev) => [...prev, ...items]);
       setError("");
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload fajlova nije uspeo");
+      setError(uploadError instanceof Error ? uploadError.message : t('uploadFailed'));
     } finally {
       event.target.value = "";
     }
@@ -155,7 +157,7 @@ export default function EditRecipePage() {
 
   function addLink() {
     if (!linkLabel.trim() || !linkUrl.trim()) {
-      setError("Unesite naslov i URL linka");
+      setError(t('enterLinkDetails'));
       return;
     }
     setLinkItems([...linkItems, { label: linkLabel, url: linkUrl }]);
@@ -170,7 +172,7 @@ export default function EditRecipePage() {
   if (loading) {
     return (
       <main className={styles.page}>
-        <PageSpinner label="Ucitavanje recepta..." />
+        <PageSpinner label={t('loadingRecipeDetails')} />
       </main>
     );
   }
@@ -179,9 +181,9 @@ export default function EditRecipePage() {
     return (
       <main className={styles.page}>
         <section className={styles.card}>
-          <h1>Izmena recepta trazi prijavu</h1>
+          <h1>{t('needLoginToEdit')}</h1>
           <div className={styles.actions}>
-            <Link href="/login">Prijava</Link>
+            <Link href="/login">{t('login')}</Link>
           </div>
         </section>
       </main>
@@ -192,9 +194,9 @@ export default function EditRecipePage() {
     return (
       <main className={styles.page}>
         <section className={styles.card}>
-          <h1>Nemate dozvolu za izmenu ovog recepta</h1>
+          <h1>{t('noPermissionEdit')}</h1>
           <div className={styles.actions}>
-            <Link href="/recipes">Nazad na recepte</Link>
+            <Link href="/recipes">{t('backToRecipes')}</Link>
           </div>
         </section>
       </main>
@@ -205,9 +207,9 @@ export default function EditRecipePage() {
     <>
       {showSuccess ? (
         <SuccessDialog
-          title="Recept je obnovljen!"
-          description="Sve promene su uspešno sačuvane."
-          actionLabel="Pregled"
+          title={t('recipeUpdated')}
+          description={t('changesUpdated')}
+          actionLabel={t('viewRecipe')}
           onAction={() => router.push(`/recipes/${params.id}`)}
         />
       ) : null}
@@ -215,46 +217,46 @@ export default function EditRecipePage() {
       <main className={styles.page}>
         <header className={styles.pageHeader}>
           <div>
-            <h1>Izmeni recept</h1>
-            <p>Ažuriraj detalje, mediju i spoljne linkove.</p>
+            <h1>{t('editRecipeTitle')}</h1>
+            <p>{t('editRecipeDescription')}</p>
           </div>
         </header>
 
         <form className={styles.form} onSubmit={handleSubmit}>
           <div className={styles.field}>
-            <label htmlFor="title">Naziv recepta</label>
+            <label htmlFor="title">{t('recipeNameLabel')}</label>
             <input id="title" name="title" defaultValue={recipe.title} required />
           </div>
           <div className={styles.field}>
-            <label htmlFor="shortDescription">Kratak opis</label>
+            <label htmlFor="shortDescription">{t('shortDescriptionLabel')}</label>
             <input id="shortDescription" name="shortDescription" defaultValue={recipe.shortDescription} required />
           </div>
           <div className={styles.field}>
-            <label htmlFor="description">Detaljan opis</label>
+            <label htmlFor="description">{t('detailedDescriptionLabel')}</label>
             <textarea id="description" name="description" defaultValue={recipe.description} required />
           </div>
           <div className={styles.field}>
-            <label htmlFor="ingredients">Sastojci, odvojeni zarezom</label>
+            <label htmlFor="ingredients">{t('ingredientsLabel')}</label>
             <textarea id="ingredients" name="ingredients" defaultValue={recipe.ingredients.join(", ")} required />
           </div>
           <div className={styles.field}>
-            <label htmlFor="steps">Koraci pripreme, svaki u novom redu</label>
+            <label htmlFor="steps">{t('stepsLabel')}</label>
             <textarea id="steps" name="steps" defaultValue={recipe.steps.join("\n")} required />
           </div>
           <div className={styles.field}>
-            <label htmlFor="preparationTime">Vreme pripreme</label>
+            <label htmlFor="preparationTime">{t('preparationTimeLabel')}</label>
             <input id="preparationTime" name="preparationTime" defaultValue={recipe.preparationTime} required />
           </div>
           <div className={styles.field}>
-            <label htmlFor="servings">Broj porcija</label>
+            <label htmlFor="servings">{t('servingsLabel')}</label>
             <input id="servings" name="servings" defaultValue={recipe.servings} required />
           </div>
 
           <div className={styles.section}>
-            <h3>Medija (opciono)</h3>
-            <p className={styles.hint}>Dodaj lokalne fajlove (slika/video/PDF) ili URL medije.</p>
+            <h3>{t('mediaSection')}</h3>
+            <p className={styles.hint}>{t('mediaHint')}</p>
             <div className={styles.field}>
-              <label htmlFor="mediaFiles">Upload fajlova sa racunara</label>
+              <label htmlFor="mediaFiles">{t('uploadFilesLabel')}</label>
               <input
                 id="mediaFiles"
                 type="file"
@@ -264,15 +266,15 @@ export default function EditRecipePage() {
               />
             </div>
             <div className={styles.field}>
-              <label>Tip medije</label>
+              <label>{t('mediaTypeLabel')}</label>
               <select value={mediaType} onChange={(e) => setMediaType(e.target.value as 'image' | 'video' | 'pdf')}>
-                <option value="image">Slika</option>
-                <option value="video">Video</option>
-                <option value="pdf">PDF</option>
+                <option value="image">{t('image')}</option>
+                <option value="video">{t('video')}</option>
+                <option value="pdf">{t('pdf')}</option>
               </select>
             </div>
             <div className={styles.field}>
-              <label>URL medije</label>
+              <label>{t('mediaUrlLabel')}</label>
               <input
                 value={mediaUrl}
                 onChange={(e) => setMediaUrl(e.target.value)}
@@ -280,13 +282,13 @@ export default function EditRecipePage() {
                   mediaType === "image"
                     ? "https://..."
                     : mediaType === "video"
-                      ? "https://... ili mp4 URL"
+                      ? t("videoUrlPlaceholder")
                       : "https://...pdf"
                 }
               />
             </div>
             <button type="button" className={styles.secondaryBtn} onClick={addMedia}>
-              + Dodaj mediju
+              {t('addMediaButton')}
             </button>
             {mediaItems.length > 0 && (
               <div className={styles.itemsList}>
@@ -306,18 +308,18 @@ export default function EditRecipePage() {
           </div>
 
           <div className={styles.section}>
-            <h3>Spoljni linkovi (opciono)</h3>
-            <p className={styles.hint}>Dodaj linkove na spoljne resurse kao što su YouTube videi ili drugi recepti.</p>
+            <h3>{t('linksSection')}</h3>
+            <p className={styles.hint}>{t('linksHint')}</p>
             <div className={styles.field}>
-              <label>Naslov linka</label>
+              <label>{t('linkLabelField')}</label>
               <input
                 value={linkLabel}
                 onChange={(e) => setLinkLabel(e.target.value)}
-                placeholder="Npr: Videopriprema"
+                placeholder={t('linkLabelPlaceholder')}
               />
             </div>
             <div className={styles.field}>
-              <label>URL linka</label>
+              <label>{t('linkUrlField')}</label>
               <input
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
@@ -325,7 +327,7 @@ export default function EditRecipePage() {
               />
             </div>
             <button type="button" className={styles.secondaryBtn} onClick={addLink}>
-              + Dodaj link
+              {t('addLinkButton')}
             </button>
             {linkItems.length > 0 && (
               <div className={styles.itemsList}>
@@ -343,7 +345,7 @@ export default function EditRecipePage() {
 
           {error ? <p className={styles.error}>{error}</p> : null}
           <button className={styles.button} disabled={submitting}>
-            {submitting ? "Čuvanje..." : "Sačuvaj izmene"}
+            {submitting ? t('savingChanges') : t('saveChangesButton')}
           </button>
         </form>
       </main>

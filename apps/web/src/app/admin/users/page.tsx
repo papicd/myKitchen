@@ -5,12 +5,14 @@ import { useEffect, useState } from "react";
 import { PageSpinner } from "../../../components/PageSpinner";
 import { getUsers, updateUserRecommendation } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
+import { useTranslation } from "../../../lib/useTranslation";
 import { AdminUser } from "../../../lib/types";
 import pageStyles from "../../page.module.scss";
 import styles from "./page.module.scss";
 
 export default function AdminUsersPage() {
   const { user, token, isLoggedIn } = useAuth();
+  const { t } = useTranslation();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -24,9 +26,9 @@ export default function AdminUsersPage() {
 
     getUsers(token)
       .then(setUsers)
-      .catch((err) => setError(err instanceof Error ? err.message : "Nije moguce ucitati korisnike"))
+      .catch((err) => setError(err instanceof Error ? err.message : t("cannotLoadUsers")))
       .finally(() => setLoading(false));
-  }, [token, user?.isAdmin]);
+  }, [token, user?.isAdmin, t]);
 
   async function toggleRecommendation(target: AdminUser) {
     if (!token) return;
@@ -38,7 +40,7 @@ export default function AdminUsersPage() {
       const updated = await updateUserRecommendation(target.id, !target.isRecommended, token);
       setUsers((prev) => prev.map((entry) => (entry.id === updated.id ? { ...entry, ...updated } : entry)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Izmena preporuke nije uspela");
+      setError(err instanceof Error ? err.message : t("updateRecommendationFailed"));
     } finally {
       setBusyId(null);
     }
@@ -48,9 +50,9 @@ export default function AdminUsersPage() {
     return (
       <main className={pageStyles.page}>
         <section className={pageStyles.card}>
-          <h1>Admin sekcija zahteva prijavu</h1>
+          <h1>{t("adminRequired")}</h1>
           <div className={pageStyles.actions}>
-            <Link href="/login">Prijava</Link>
+            <Link href="/login">{t("login")}</Link>
           </div>
         </section>
       </main>
@@ -61,9 +63,9 @@ export default function AdminUsersPage() {
     return (
       <main className={pageStyles.page}>
         <section className={pageStyles.card}>
-          <h1>Ova stranica je dostupna samo administratoru</h1>
+          <h1>{t("adminOnly")}</h1>
           <div className={pageStyles.actions}>
-            <Link href="/">Nazad na pocetnu</Link>
+            <Link href="/">{t("backToHome")}</Link>
           </div>
         </section>
       </main>
@@ -74,14 +76,14 @@ export default function AdminUsersPage() {
     <main className={pageStyles.page}>
       <header className={pageStyles.pageHeader}>
         <div>
-          <h1>Preporuceni korisnici</h1>
-          <p>Administrator moze oznaciti autore ciji ce recepti biti posebno istaknuti.</p>
+          <h1>{t("recommendedUsers")}</h1>
+          <p>{t("recommendedUsersDescription")}</p>
         </div>
       </header>
 
       <section className={pageStyles.card}>
         {error ? <p className={pageStyles.error}>{error}</p> : null}
-        {loading ? <PageSpinner label="Ucitavanje korisnika..." /> : null}
+        {loading ? <PageSpinner label={t("loadingUsers")} /> : null}
 
         {!loading ? (
           <div className={styles.list}>
@@ -99,14 +101,14 @@ export default function AdminUsersPage() {
                       @{entry.username} · {entry.email}
                     </p>
                     <div className={styles.meta}>
-                      {entry.isAdmin ? <span className={styles.badge}>Admin</span> : null}
+                      {entry.isAdmin ? <span className={styles.badge}>{t("admin")}</span> : null}
                       {entry.isRecommended ? (
-                        <span className={`${styles.badge} ${styles.recommended}`}>Preporucen autor</span>
+                        <span className={`${styles.badge} ${styles.recommended}`}>{t("recommendedAuthor")}</span>
                       ) : null}
-                      <span className={styles.badge}>{entry.recipeCount} recepta</span>
+                      <span className={styles.badge}>{entry.recipeCount} {t("recipeCount")}</span>
                     </div>
                     {isSelf ? (
-                      <span className={styles.selfNote}>Ne mozes preporuciti sopstveni nalog.</span>
+                      <span className={styles.selfNote}>{t("cannotRecommendSelf")}</span>
                     ) : null}
                   </div>
 
@@ -118,10 +120,10 @@ export default function AdminUsersPage() {
                       disabled={isSelf || isBusy}
                     >
                       {isBusy
-                        ? "Cuvanje..."
+                        ? t("saving")
                         : entry.isRecommended
-                          ? "Ukloni preporuku"
-                          : "Preporuci autora"}
+                          ? t("removeRecommendation")
+                          : t("recommendAuthor")}
                     </button>
                   </div>
                 </article>

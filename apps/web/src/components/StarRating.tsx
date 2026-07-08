@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslation } from "../lib/useTranslation";
 import styles from "./StarRating.module.scss";
 
 type StarRatingProps = {
@@ -19,6 +22,7 @@ export function StarRating({
   onRate,
   helperText,
 }: StarRatingProps) {
+  const { t } = useTranslation();
   const activeValue = interactive ? currentUserRating ?? 0 : Math.round(averageRating);
 
   return (
@@ -47,7 +51,7 @@ export function StarRating({
               className={`${styles.starButton} ${filled ? styles.filled : ""}`}
               onClick={() => onRate?.(value)}
               disabled={disabled}
-              aria-label={`Oceni sa ${value} zvezdica`}
+              aria-label={t("rateWithStars", { value })}
             >
               ★
             </button>
@@ -56,7 +60,9 @@ export function StarRating({
       </div>
 
       <span className={styles.summary}>
-        {ratingsCount > 0 ? `${averageRating.toFixed(1)} / 5 · ${ratingsCount} ocena` : "Jos nema ocena"}
+        {ratingsCount > 0
+          ? t("ratingsSummary", { average: averageRating.toFixed(1), count: ratingsCount })
+          : t("noRatings")}
       </span>
 
       {helperText ? <span className={styles.helper}>{helperText}</span> : null}

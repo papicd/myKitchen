@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { login } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useTranslation } from "../../lib/useTranslation";
 import styles from "../page.module.scss";
 
 export default function LoginPage() {
   const router = useRouter();
   const { saveAuth } = useAuth();
+  const { t } = useTranslation();
   const [error, setError] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -27,7 +29,7 @@ export default function LoginPage() {
       router.push("/");
     } catch (loginError) {
       setError(
-        loginError instanceof Error ? loginError.message : "Prijava nije uspela",
+        loginError instanceof Error ? loginError.message : t("loginFailed"),
       );
     }
   }
@@ -36,26 +38,26 @@ export default function LoginPage() {
     <main className={styles.page}>
       <header className={styles.pageHeader}>
         <div>
-          <h1>Prijava</h1>
-          <p>Koristi nalog da vidis detalje recepata i dodajes svoje recepte.</p>
+          <h1>{t("loginTitle")}</h1>
+          <p>{t("loginDescription")}</p>
         </div>
       </header>
 
       <form className={styles.form} onSubmit={handleSubmit}>
         <div className={styles.field}>
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">{t("email")}</label>
           <input id="email" name="email" required type="email" />
         </div>
         <div className={styles.field}>
-          <label htmlFor="password">Lozinka</label>
+          <label htmlFor="password">{t("password")}</label>
           <input id="password" name="password" required type="password" />
         </div>
         {error ? <p className={styles.error}>{error}</p> : null}
-        <button className={styles.button}>Prijavi se</button>
+        <button className={styles.button}>{t("loginButton")}</button>
       </form>
 
       <p className={styles.muted}>
-        Nemas nalog? <Link href="/signup">Registruj se</Link>
+        {t("noAccount")} <Link href="/signup">{t("registerNow")}</Link>
       </p>
     </main>
   );

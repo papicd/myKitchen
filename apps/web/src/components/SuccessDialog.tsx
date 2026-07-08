@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslation } from "../lib/useTranslation";
 import styles from "./SuccessDialog.module.scss";
 
 type Props = {
@@ -10,9 +13,11 @@ type Props = {
 export function SuccessDialog({
   title,
   description,
-  actionLabel = "Nastavi",
+  actionLabel,
   onAction,
 }: Props) {
+  const { t } = useTranslation();
+
   return (
     <div className={styles.overlay} onClick={onAction}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
@@ -25,7 +30,7 @@ export function SuccessDialog({
         </div>
         <div className={styles.actions}>
           <button className={styles.button} type="button" onClick={onAction}>
-            {actionLabel}
+            {actionLabel ?? t("continue")}
           </button>
         </div>
       </div>

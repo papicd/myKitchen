@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslation } from "../lib/useTranslation";
 import styles from "./ConfirmDialog.module.scss";
 
 type Props = {
@@ -12,11 +15,13 @@ type Props = {
 export function ConfirmDialog({
   title,
   description,
-  confirmLabel = "Obrisi",
+  confirmLabel,
   loading = false,
   onConfirm,
   onCancel,
 }: Props) {
+  const { t } = useTranslation();
+
   return (
     <div className={styles.overlay} onClick={onCancel}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
@@ -32,7 +37,7 @@ export function ConfirmDialog({
             onClick={onCancel}
             disabled={loading}
           >
-            Otkazi
+            {t("cancel")}
           </button>
           <button
             className={styles.confirm}
@@ -40,7 +45,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             disabled={loading}
           >
-            {loading ? "Brisanje..." : confirmLabel}
+            {loading ? t("deleting") : (confirmLabel ?? t("delete"))}
           </button>
         </div>
       </div>

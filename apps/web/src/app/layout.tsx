@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.scss";
 import { Header } from "../components/Header";
 import { AuthProvider } from "../lib/auth";
+import sr from "../translations/sr.json";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Moja Kuhinja",
-  description: "Recepti na srpskom jeziku",
+  title: sr.appName,
+  description: sr.intro,
 };
 
 export default function RootLayout({

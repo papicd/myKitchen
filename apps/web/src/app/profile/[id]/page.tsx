@@ -7,12 +7,14 @@ import { PageSpinner } from "../../../components/PageSpinner";
 import { StarRating } from "../../../components/StarRating";
 import { getUserProfile, getUserRecipes, getSavedRecipes, toggleSaveRecipe } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
+import { useTranslation } from "../../../lib/useTranslation";
 import { AdminUser, RecipeListItem } from "../../../lib/types";
 import styles from "../../page.module.scss";
 
 export default function UserProfilePage() {
   const params = useParams<{ id: string }>();
   const { token, isLoggedIn } = useAuth();
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<AdminUser | null>(null);
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
@@ -26,9 +28,9 @@ export default function UserProfilePage() {
         setProfile(userData);
         setRecipes(recipeData);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Nije moguce ucitati profil"))
+      .catch((err) => setError(err instanceof Error ? err.message : t("cannotLoadProfile")))
       .finally(() => setLoading(false));
-  }, [params.id]);
+  }, [params.id, t]);
 
   useEffect(() => {
     if (!token || !isLoggedIn) {
@@ -62,7 +64,7 @@ export default function UserProfilePage() {
   if (loading) {
     return (
       <main className={styles.page}>
-        <PageSpinner label="Ucitavanje profila..." />
+        <PageSpinner label={t("loadingProfile")} />
       </main>
     );
   }
@@ -76,7 +78,7 @@ export default function UserProfilePage() {
             <h1>
               {profile.firstName} {profile.lastName}
             </h1>
-            <p>@{profile.username} · {profile.recipeCount} recepta</p>
+            <p>@{profile.username} · {profile.recipeCount} {t("recipeCount")}</p>
           </div>
         </header>
       ) : null}
@@ -88,7 +90,7 @@ export default function UserProfilePage() {
               <h2>{recipe.title}</h2>
               <p>{recipe.shortDescription}</p>
               {recipe.postedByRecommendedUser ? (
-                <p className={styles.recommendedLabel}>Preporuceni autor</p>
+                <p className={styles.recommendedLabel}>{t("recommendedAuthor")}</p>
               ) : null}
               <div className={styles.meta}>
                 <span>{recipe.preparationTime}</span>
@@ -106,7 +108,7 @@ export default function UserProfilePage() {
                   disabled={savingId === recipe.id}
                   onClick={() => handleSave(recipe.id)}
                 >
-                  {savingId === recipe.id ? "..." : savedIds.includes(recipe.id) ? "Sacuvano" : "Sacuvaj"}
+                  {savingId === recipe.id ? "..." : savedIds.includes(recipe.id) ? t("saved") : t("save")}
                 </button>
               </div>
             ) : null}

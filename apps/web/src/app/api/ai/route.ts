@@ -14,14 +14,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { provider, prompt } = body as { provider: string; prompt: string };
+  const { provider, prompt, apiKey: bodyApiKey } = body as {
+    provider: string;
+    prompt: string;
+    apiKey?: string;
+  };
 
   try {
     if (provider === "openai") {
-      const apiKey = process.env.OPENAI_API_KEY;
+      const apiKey = process.env.OPENAI_API_KEY ?? bodyApiKey?.trim();
       if (!apiKey) {
         return NextResponse.json(
-          { error: "OpenAI API kljuc nije konfigurisan na serveru." },
+          {
+            error:
+              "OpenAI API kljuc nije konfigurisan na serveru i nije prosledjen kroz zahtev.",
+          },
           { status: 500 },
         );
       }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useAuth } from "../../lib/auth";
+import { useTranslation } from "../../lib/useTranslation";
 import sharedStyles from "../page.module.scss";
 import styles from "./page.module.scss";
 
@@ -31,7 +32,9 @@ const PROVIDERS: {
 
 export default function FindAiPage() {
   const { isLoggedIn } = useAuth();
+  const { t } = useTranslation();
   const [provider, setProvider] = useState<Provider>("openai");
+  const [openAiApiKey, setOpenAiApiKey] = useState("");
   const [response, setResponse] = useState("");
   const [usedProvider, setUsedProvider] = useState<Provider>("openai");
   const [error, setError] = useState("");
@@ -50,16 +53,20 @@ export default function FindAiPage() {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, prompt }),
+        body: JSON.stringify({
+          provider,
+          prompt,
+          apiKey: provider === "openai" ? openAiApiKey.trim() || undefined : undefined,
+        }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Greska pri pozivu AI");
+      if (!res.ok) throw new Error(data.error ?? t("aiError"));
 
       setUsedProvider(provider);
       setResponse(data.response);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Greska pri pozivu AI");
+      setError(err instanceof Error ? err.message : t("aiError"));
     } finally {
       setLoading(false);
     }
@@ -69,12 +76,12 @@ export default function FindAiPage() {
     return (
       <main className={sharedStyles.page}>
         <section className={sharedStyles.card}>
-          <h1>AI asistent je dostupan nakon prijave</h1>
+          <h1>{t("aiNotAvailable")}</h1>
           <p className={sharedStyles.muted}>
-            Prijavi se da koristis AI za predloge recepata i savete o kuvanju.
+            {t("loginAndUseAI")}
           </p>
           <div className={sharedStyles.actions}>
-            <Link href="/login">Prijava</Link>
+            <Link href="/login">{t("login")}</Link>
           </div>
         </section>
       </main>
@@ -88,14 +95,13 @@ export default function FindAiPage() {
     <main className={sharedStyles.page}>
       <header className={sharedStyles.pageHeader}>
         <div>
-          <h1>Pronadji sa AI</h1>
-          <p>Pitaj AI asistenta za predlog recepta ili savet o kuvanju.</p>
+          <h1>{t("findWithAITitle")}</h1>
+          <p>{t("findWithAIDescription")}</p>
         </div>
       </header>
 
       <p className={styles.hint}>
-        Izaberi AI asistenta, unesi svoje pitanje ili nabroj namirnice koje imas
-        i AI ce ti predloziti sta mozas da skuvas.
+        {t("aiInstructions")}
       </p>
 
       <div className={styles.providerTabs}>
@@ -117,19 +123,36 @@ export default function FindAiPage() {
       <form className={sharedStyles.form} onSubmit={handleSubmit}>
         <div className={sharedStyles.field}>
           <label htmlFor="prompt">
-            Pitanje za {activeProviderInfo.name}
+            {t("askProvider", { provider: activeProviderInfo.name })}
           </label>
           <textarea
             id="prompt"
             name="prompt"
-            placeholder={`Npr. "Imam piletinu, pirinac i papriku, sta mogu da skuvam?" ili "Predlozi mi brz rucak za 4 osobe."`}
+            placeholder={`${t("askAIPlaceholder1")} ${t("askAIPlaceholder2")}`}
             required
             disabled={loading}
           />
         </div>
+
+        {provider === "openai" ? (
+          <div className={sharedStyles.field}>
+            <label htmlFor="openAiApiKey">{t("openAiApiKeyLabel")}</label>
+            <input
+              id="openAiApiKey"
+              type="password"
+              autoComplete="off"
+              value={openAiApiKey}
+              onChange={(e) => setOpenAiApiKey(e.target.value)}
+              placeholder={t("openAiApiKeyPlaceholder")}
+              disabled={loading}
+            />
+            <small className={sharedStyles.muted}>{t("openAiApiKeyHint")}</small>
+          </div>
+        ) : null}
+
         <button className={sharedStyles.button} disabled={loading}>
           {loading && <span className={styles.spinner} />}
-          {loading ? "AI razmislja..." : `Pitaj ${activeProviderInfo.name}`}
+          {loading ? t("aiThinking") : t("askProvider", { provider: activeProviderInfo.name })}
         </button>
       </form>
 
@@ -138,7 +161,7 @@ export default function FindAiPage() {
       {response ? (
         <div className={styles.responseBox}>
           <div className={styles.responseHeader}>
-            <h2 className={styles.responseTitle}>Odgovor AI asistenta</h2>
+            <h2 className={styles.responseTitle}>{t("aiResponse")}</h2>
             <span className={styles.responseProvider}>
               {usedProviderInfo.name}
             </span>

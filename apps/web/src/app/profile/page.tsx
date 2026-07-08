@@ -6,11 +6,13 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PageSpinner } from "../../components/PageSpinner";
 import { deleteRecipe, getMyRecipes } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useTranslation } from "../../lib/useTranslation";
 import { RecipeListItem } from "../../lib/types";
 import styles from "../page.module.scss";
 
 export default function ProfilePage() {
   const { user, token, isLoggedIn } = useAuth();
+  const { t } = useTranslation();
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -26,10 +28,10 @@ export default function ProfilePage() {
     getMyRecipes(token)
       .then(setRecipes)
       .catch(() => {
-        setError("Nije moguce ucitati tvoje recepte");
+        setError(t("cannotLoadUserRecipes"));
       })
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, t]);
 
   async function handleDelete() {
     if (!deleteId || !token) return;
@@ -41,7 +43,7 @@ export default function ProfilePage() {
       setRecipes(updatedRecipes);
       setDeleteId(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Brisanje nije uspelo");
+      setError(err instanceof Error ? err.message : t("deleteError"));
       setDeleteId(null);
     } finally {
       setDeleting(false);
@@ -52,9 +54,9 @@ export default function ProfilePage() {
     return (
       <main className={styles.page}>
         <section className={styles.card}>
-          <h1>Profil je dostupan nakon prijave</h1>
+          <h1>{t("profileNotAvailable")}</h1>
           <div className={styles.actions}>
-            <Link href="/login">Prijava</Link>
+            <Link href="/login">{t("login")}</Link>
           </div>
         </section>
       </main>
@@ -65,9 +67,9 @@ export default function ProfilePage() {
     <>
       {deleteId ? (
         <ConfirmDialog
-          title="Obrisi recept"
-          description="Da li si siguran da zelis da obrises ovaj recept? Ova akcija se ne moze ponistiti."
-          confirmLabel="Obrisi recept"
+          title={t("deleteRecipeTitle")}
+          description={t("deleteConfirmMessage")}
+          confirmLabel={t("deleteRecipeButton")}
           loading={deleting}
           onConfirm={handleDelete}
           onCancel={() => setDeleteId(null)}
@@ -77,7 +79,7 @@ export default function ProfilePage() {
       <main className={styles.page}>
         <header className={styles.pageHeader}>
           <div>
-            <h1>Profil</h1>
+            <h1>{t("profileTitle")}</h1>
             <p>
               {user.firstName} {user.lastName} - {user.email}
             </p>
@@ -85,12 +87,12 @@ export default function ProfilePage() {
         </header>
 
         <section className={styles.card}>
-          <h2>Moji recepti</h2>
+          <h2>{t("myRecipesSection")}</h2>
           {error ? <p className={styles.error}>{error}</p> : null}
-          {loading && !error ? <PageSpinner label="Ucitavanje tvojih recepata..." /> : null}
+          {loading && !error ? <PageSpinner label={t("loadingMyRecipes")} /> : null}
           {!loading ? (
             recipes.length === 0 ? (
-              <p className={styles.muted}>Jos nisi dodao nijedan recept.</p>
+              <p className={styles.muted}>{t("noRecipesAdded")}</p>
             ) : (
             <div className={styles.grid}>
               {recipes.map((recipe) => (
@@ -113,7 +115,7 @@ export default function ProfilePage() {
                   <button
                     className={styles.deleteBtn}
                     type="button"
-                    title="Obrisi recept"
+                    title={t("deleteRecipeButton")}
                     onClick={() => setDeleteId(recipe.id)}
                   >
                     🗑

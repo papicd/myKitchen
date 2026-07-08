@@ -4,11 +4,13 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { getSavedRecipes, searchRecipes, toggleSaveRecipe } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useTranslation } from "../../lib/useTranslation";
 import { RecipeListItem } from "../../lib/types";
 import styles from "../page.module.scss";
 
 export default function FindPage() {
   const { token, isLoggedIn } = useAuth();
+  const { t } = useTranslation();
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
   const [error, setError] = useState("");
   const [savedIds, setSavedIds] = useState<string[]>([]);
@@ -19,7 +21,7 @@ export default function FindPage() {
     setError("");
 
     if (!token) {
-      setError("Morate biti prijavljeni");
+      setError(t("mustBeLogged"));
       return;
     }
 
@@ -35,7 +37,7 @@ export default function FindPage() {
       setError(
         searchError instanceof Error
           ? searchError.message
-          : "Pretraga nije uspela",
+          : t("searchFailed"),
       );
     }
   }
@@ -71,10 +73,10 @@ export default function FindPage() {
     return (
       <main className={styles.page}>
         <section className={styles.card}>
-          <h1>Pretraga je dostupna nakon prijave</h1>
-          <p className={styles.muted}>Prijavi se i pronadji recept prema namirnicama.</p>
+          <h1>{t("searchAvailableAfterLogin")}</h1>
+          <p className={styles.muted}>{t("loginAndSearch")}</p>
           <div className={styles.actions}>
-            <Link href="/login">Prijava</Link>
+            <Link href="/login">{t("login")}</Link>
           </div>
         </section>
       </main>
@@ -85,17 +87,17 @@ export default function FindPage() {
     <main className={styles.page}>
       <header className={styles.pageHeader}>
         <div>
-          <h1>Pronadji jelo</h1>
-          <p>Unesi namirnice odvojene zarezom ili razmakom.</p>
+          <h1>{t("findTitle")}</h1>
+          <p>{t("findDescription")}</p>
         </div>
       </header>
 
       <form className={styles.form} onSubmit={handleSubmit}>
         <div className={styles.field}>
-          <label htmlFor="groceries">Namirnice</label>
-          <input id="groceries" name="groceries" placeholder="piletina pirinac paprika" />
+          <label htmlFor="groceries">{t("ingredientsFieldLabel")}</label>
+          <input id="groceries" name="groceries" placeholder={t("ingredientsFieldPlaceholder")} />
         </div>
-        <button className={styles.button}>Pronadji recepte</button>
+        <button className={styles.button}>{t("searchButton")}</button>
       </form>
 
       {error ? <p className={styles.error}>{error}</p> : null}
@@ -107,7 +109,7 @@ export default function FindPage() {
               <h2>{recipe.title}</h2>
               <p>{recipe.shortDescription}</p>
               <div className={styles.meta}>
-                <span>Poklapanja: {recipe.matchedGroceries ?? 0}</span>
+                <span>{t("matches", { count: recipe.matchedGroceries ?? 0 })}</span>
               </div>
             </Link>
             <div className={styles.cardFooter}>
@@ -127,8 +129,8 @@ export default function FindPage() {
                   {savingId === recipe.id
                     ? "..."
                     : savedIds.includes(recipe.id)
-                      ? "Sacuvano"
-                      : "Sacuvaj"}
+                      ? t("saved")
+                      : t("save")}
                 </button>
               </div>
             </div>

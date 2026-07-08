@@ -6,11 +6,13 @@ import { PageSpinner } from "../../components/PageSpinner";
 import { StarRating } from "../../components/StarRating";
 import { getRecipes, getSavedRecipes, toggleSaveRecipe } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useTranslation } from "../../lib/useTranslation";
 import { RecipeListItem } from "../../lib/types";
 import styles from "../page.module.scss";
 
 export default function RecipesPage() {
   const { token, isLoggedIn } = useAuth();
+  const { t } = useTranslation();
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -20,9 +22,9 @@ export default function RecipesPage() {
   useEffect(() => {
     getRecipes()
       .then(setRecipes)
-      .catch(() => setError("Recepti trenutno nisu dostupni."))
+      .catch(() => setError(t("recipesUnavailable")))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!token || !isLoggedIn) {
@@ -68,13 +70,13 @@ export default function RecipesPage() {
     <main className={styles.page}>
       <header className={styles.pageHeader}>
         <div>
-          <h1>Recepti</h1>
-          <p>Osnovne informacije su dostupne svima. Detalji traze prijavu.</p>
+          <h1>{t("recipesTitle")}</h1>
+          <p>{t("recipesBasicInfo")}</p>
         </div>
       </header>
 
       {error ? <p className={styles.error}>{error}</p> : null}
-      {loading && !error ? <PageSpinner label="Ucitavanje recepata..." /> : null}
+      {loading && !error ? <PageSpinner label={t("loadingRecipes")} /> : null}
 
       <section className={styles.grid}>
         {recipes.map((recipe) => (
@@ -83,7 +85,7 @@ export default function RecipesPage() {
               <h2>{recipe.title}</h2>
               <p>{recipe.shortDescription}</p>
               {recipe.postedByRecommendedUser ? (
-                <p className={styles.recommendedLabel}>Preporuceni autor</p>
+                <p className={styles.recommendedLabel}>{t("recommendedAuthor")}</p>
               ) : null}
               <div className={styles.meta}>
                 <span>{recipe.preparationTime}</span>
@@ -119,8 +121,8 @@ export default function RecipesPage() {
                     {savingId === recipe.id
                       ? "..."
                       : savedIds.includes(recipe.id)
-                        ? "Sacuvano"
-                        : "Sacuvaj"}
+                        ? t("saved")
+                        : t("save")}
                   </button>
                 </div>
               ) : null}

@@ -11,6 +11,7 @@ import {
   toggleSaveRecipe,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useTranslation } from "../../lib/useTranslation";
 import { RecipeListItem } from "../../lib/types";
 import styles from "../page.module.scss";
 
@@ -18,6 +19,7 @@ type Tab = "saved" | "rated";
 
 export default function MyRecipesPage() {
   const { token, isLoggedIn } = useAuth();
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("saved");
   const [savedRecipes, setSavedRecipes] = useState<RecipeListItem[]>([]);
   const [ratedRecipes, setRatedRecipes] = useState<RecipeListItem[]>([]);
@@ -37,9 +39,9 @@ export default function MyRecipesPage() {
         setSavedRecipes(saved);
         setRatedRecipes(rated);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Nije moguce ucitati recepte"))
+      .catch((err) => setError(err instanceof Error ? err.message : t("cannotLoadRecipe")))
       .finally(() => setLoading(false));
-  }, [isLoggedIn, token]);
+  }, [isLoggedIn, token, t]);
 
   const savedIds = useMemo(() => savedRecipes.map((recipe) => recipe.id), [savedRecipes]);
 
@@ -58,7 +60,7 @@ export default function MyRecipesPage() {
         setSavedRecipes(refreshed);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Cuvanje nije uspelo");
+      setError(err instanceof Error ? err.message : t("saveFailed"));
     } finally {
       setBusySaveId(null);
     }
@@ -85,7 +87,7 @@ export default function MyRecipesPage() {
         ),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ocena nije sacuvana");
+      setError(err instanceof Error ? err.message : t("ratingNotSaved"));
     } finally {
       setBusyRateId(null);
     }
@@ -95,9 +97,9 @@ export default function MyRecipesPage() {
     return (
       <main className={styles.page}>
         <section className={styles.card}>
-          <h1>Moji recepti su dostupni nakon prijave</h1>
+          <h1>{t("myRecipesNotAvailable")}</h1>
           <div className={styles.actions}>
-            <Link href="/login">Prijava</Link>
+            <Link href="/login">{t("login")}</Link>
           </div>
         </section>
       </main>
@@ -110,8 +112,8 @@ export default function MyRecipesPage() {
     <main className={styles.page}>
       <header className={styles.pageHeader}>
         <div>
-          <h1>Moji recepti</h1>
-          <p>Sacuvani recepti i recepti koje si ocenio.</p>
+          <h1>{t("myRecipesTitle")}</h1>
+          <p>{t("myRecipesDescription")}</p>
         </div>
       </header>
 
@@ -122,25 +124,25 @@ export default function MyRecipesPage() {
             className={`${styles.tabBtn} ${tab === "saved" ? styles.tabBtnActive : ""}`}
             onClick={() => setTab("saved")}
           >
-            Sacuvani recepti ({savedRecipes.length})
+            {t("savedRecipes", { count: savedRecipes.length })}
           </button>
           <button
             type="button"
             className={`${styles.tabBtn} ${tab === "rated" ? styles.tabBtnActive : ""}`}
             onClick={() => setTab("rated")}
           >
-            Ocenjeni recepti ({ratedRecipes.length})
+            {t("ratedRecipes", { count: ratedRecipes.length })}
           </button>
         </div>
 
         {error ? <p className={styles.error}>{error}</p> : null}
-        {loading ? <PageSpinner label="Ucitavanje tvojih recepata..." /> : null}
+        {loading ? <PageSpinner label={t("loadingMyRecipes")} /> : null}
 
         {!loading && recipes.length === 0 ? (
           <p className={styles.muted}>
             {tab === "saved"
-              ? "Jos uvek nemas sacuvanih recepata."
-              : "Jos uvek nisi ocenio nijedan recept."}
+              ? t("noSavedRecipes")
+              : t("noRatedRecipes")}
           </p>
         ) : null}
 
@@ -152,7 +154,7 @@ export default function MyRecipesPage() {
                   <h2>{recipe.title}</h2>
                   <p>{recipe.shortDescription}</p>
                   {recipe.postedByRecommendedUser ? (
-                    <p className={styles.recommendedLabel}>Preporuceni autor</p>
+                    <p className={styles.recommendedLabel}>{t("recommendedAuthor")}</p>
                   ) : null}
                   <div className={styles.meta}>
                     <span>{recipe.preparationTime}</span>
@@ -169,8 +171,8 @@ export default function MyRecipesPage() {
                       helperText={
                         tab === "rated"
                           ? recipe.currentUserRating
-                            ? `Tvoja ocena: ${recipe.currentUserRating}`
-                            : "Klikni za ocenjivanje"
+                            ? t("yourRating", { rating: recipe.currentUserRating })
+                            : t("clickToRate")
                           : undefined
                       }
                     />
@@ -193,8 +195,8 @@ export default function MyRecipesPage() {
                       {busySaveId === recipe.id
                         ? "..."
                         : savedIds.includes(recipe.id)
-                          ? "Sacuvano"
-                          : "Sacuvaj"}
+                          ? t("saved")
+                          : t("save")}
                     </button>
                   </div>
                 </div>

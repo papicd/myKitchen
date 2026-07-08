@@ -10,12 +10,16 @@ import {
   useState,
 } from "react";
 import { Toast } from "../components/Toast";
+import en from "../translations/en.json";
+import sr from "../translations/sr.json";
 import { AuthResponse, User } from "./types";
 
 type AuthContextValue = {
   user: User | null;
   token: string | null;
   isLoggedIn: boolean;
+  language: 'en' | 'sr';
+  setLanguage: (lang: 'en' | 'sr') => void;
   saveAuth: (auth: AuthResponse) => void;
   logout: () => void;
   logoutOnExpiry: () => void;
@@ -36,6 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [language, setLanguageState] = useState<'en' | 'sr'>('sr');
+
+  const dictionary = language === "en" ? en : sr;
+  const t = useCallback(
+    (key: keyof typeof sr) => dictionary[key] ?? String(key),
+    [dictionary],
+  );
 
   const logout = useCallback(() => {
     localStorage.removeItem("authToken");
@@ -44,14 +55,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const logoutOnExpiry = useCallback((message = "Sesija je istekla. Prijavite se ponovo.") => {
+  const logoutOnExpiry = useCallback((message = t("reAuthRequired")) => {
     logout();
     setToastMessage(message);
-  }, [logout]);
+  }, [logout, t]);
+
+  const setLanguage = useCallback((lang: 'en' | 'sr') => {
+    setLanguageState(lang);
+    localStorage.setItem("language", lang);
+  }, []);
 
   useEffect(() => {
     const savedToken = localStorage.getItem("authToken");
     const savedUser = localStorage.getItem("authUser");
+    const savedLanguage = localStorage.getItem("language") as 'en' | 'sr' | null;
+
+    if (savedLanguage) {
+      setLanguageState(savedLanguage);
+    }
 
     if (savedToken && savedUser) {
       if (isJwtExpired(savedToken)) {
@@ -84,6 +105,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       token,
       isLoggedIn: Boolean(user && token),
+      language,
+      setLanguage,
       saveAuth(auth) {
         localStorage.setItem("authToken", auth.token);
         localStorage.setItem("authUser", JSON.stringify(auth.user));
@@ -93,14 +116,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       logoutOnExpiry: () => logoutOnExpiry(),
     }),
-    [logout, logoutOnExpiry, user, token],
+    [logout, logoutOnExpiry, user, token, language, setLanguage],
   );
 
   return (
     <AuthContext.Provider value={value}>
       {children}
       {toastMessage ? (
-        <Toast title="Sesija je zavrsena" message={toastMessage} />
+        <Toast title={t("tokenExpired")} message={toastMessage} />
       ) : null}
     </AuthContext.Provider>
   );
@@ -110,7 +133,7 @@ export function useAuth() {
   const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error("useAuth mora biti koriscen unutar AuthProvider komponente");
+    throw new Error("useAuth must be used within AuthProvider");
   }
 
   return context;

@@ -14,6 +14,7 @@ import {
   toggleSaveRecipe,
 } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
+import { useTranslation } from "../../../lib/useTranslation";
 import { RecipeDetails } from "../../../lib/types";
 import pageStyles from "../../page.module.scss";
 import styles from "./page.module.scss";
@@ -42,6 +43,7 @@ export default function RecipeDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { user, token, isLoggedIn } = useAuth();
+  const { t } = useTranslation();
   const [recipe, setRecipe] = useState<RecipeDetails | null>(null);
   const [error, setError] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
@@ -61,10 +63,10 @@ export default function RecipeDetailsPage() {
         setError(
           detailsError instanceof Error
             ? detailsError.message
-            : "Recept nije moguce ucitati",
+            : t("cannotLoadRecipe"),
         ),
       );
-  }, [isLoggedIn, params.id, token]);
+  }, [isLoggedIn, params.id, token, t]);
 
   useEffect(() => {
     if (!token || !isLoggedIn) {
@@ -84,7 +86,7 @@ export default function RecipeDetailsPage() {
       await deleteRecipe(params.id, token);
       router.push("/recipes");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Brisanje nije uspelo");
+      setError(err instanceof Error ? err.message : t("deleteError"));
       setShowConfirm(false);
     } finally {
       setDeleting(false);
@@ -103,7 +105,7 @@ export default function RecipeDetailsPage() {
       const updatedRecipe = await rateRecipe(params.id, value, token);
       setRecipe(updatedRecipe);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ocenjivanje nije uspelo");
+      setError(err instanceof Error ? err.message : t("ratingError"));
     } finally {
       setRatingLoading(false);
     }
@@ -120,7 +122,7 @@ export default function RecipeDetailsPage() {
       const result = await toggleSaveRecipe(params.id, token);
       setIsSaved(result.saved);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Cuvanje nije uspelo");
+      setError(err instanceof Error ? err.message : t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -130,12 +132,12 @@ export default function RecipeDetailsPage() {
     return (
       <main className={pageStyles.page}>
         <section className={pageStyles.card}>
-          <h1>Detalji recepta su dostupni nakon prijave</h1>
+          <h1>{t('recipeDetailsNotAvailable')}</h1>
           <p className={pageStyles.muted}>
-            Prijavi se da vidis opis, sastojke i korake pripreme.
+            {t('loginToSeeDetails')}
           </p>
           <div className={pageStyles.actions}>
-            <Link href="/login">Prijava</Link>
+            <Link href="/login">{t('login')}</Link>
           </div>
         </section>
       </main>
@@ -150,9 +152,9 @@ export default function RecipeDetailsPage() {
     <>
       {showConfirm ? (
         <ConfirmDialog
-          title="Obrisi recept"
-          description={`Da li si siguran da zelis da obrises recept "${recipe?.title}"? Ova akcija se ne moze ponistiti.`}
-          confirmLabel="Obrisi recept"
+          title={t('deleteRecipeTitle')}
+          description={t('deleteRecipeConfirm', { title: recipe?.title || '' })}
+          confirmLabel={t('deleteRecipeButton')}
           loading={deleting}
           onConfirm={handleDelete}
           onCancel={() => setShowConfirm(false)}
@@ -162,15 +164,15 @@ export default function RecipeDetailsPage() {
       <main className={`${pageStyles.page} ${styles.pageShell}`}>
         {error ? <p className={pageStyles.error}>{error}</p> : null}
         {!recipe && !error ? (
-          <PageSpinner label="Ucitavanje recepta..." />
+          <PageSpinner label={t('loadingRecipeDetails')} />
         ) : null}
         {recipe ? (
           <article className={styles.recipeCard}>
             <header className={styles.hero}>
               <div className={styles.tagRow}>
-                <span className={styles.tag}>Detaljan recept</span>
+                <span className={styles.tag}>{t('detailedRecipe')}</span>
                 {recipe.postedByRecommendedUser ? (
-                  <span className={styles.recommendedTag}>Preporuceni autor</span>
+                  <span className={styles.recommendedTag}>{t('recommendedAuthor')}</span>
                 ) : null}
               </div>
               <div className={styles.titleRow}>
@@ -178,24 +180,24 @@ export default function RecipeDetailsPage() {
                 {canDelete ? (
                   <div className={styles.actions}>
                     <button className={styles.saveBtn} type="button" onClick={handleSaveToggle}>
-                      {saving ? "..." : isSaved ? "Sacuvano" : "Sacuvaj"}
+                      {saving ? "..." : isSaved ? t('saved') : t('save')}
                     </button>
                     <Link href={`/edit-recipe/${params.id}`} className={styles.editBtn}>
-                      Izmeni
+                      {t('edit')}
                     </Link>
                     <button
                       className={styles.deleteBtn}
                       type="button"
                       onClick={() => setShowConfirm(true)}
                     >
-                      Obrisi recept
+                      {t('deleteRecipeButton')}
                     </button>
                   </div>
                 ) : null}
                 {!canDelete ? (
                   <div className={styles.actions}>
                     <button className={styles.saveBtn} type="button" onClick={handleSaveToggle}>
-                      {saving ? "..." : isSaved ? "Sacuvano" : "Sacuvaj"}
+                      {saving ? "..." : isSaved ? t('saved') : t('save')}
                     </button>
                   </div>
                 ) : null}
@@ -203,16 +205,16 @@ export default function RecipeDetailsPage() {
               <p className={styles.lead}>{recipe.description}</p>
               <div className={styles.metaGrid}>
                 <article className={styles.metaCard}>
-                  <p className={styles.metaLabel}>Vreme pripreme</p>
+                  <p className={styles.metaLabel}>{t('preparationTimeLabel')}</p>
                   <p className={styles.metaValue}>{recipe.preparationTime}</p>
                 </article>
                 <article className={styles.metaCard}>
-                  <p className={styles.metaLabel}>Broj porcija</p>
+                  <p className={styles.metaLabel}>{t('servingsLabel')}</p>
                   <p className={styles.metaValue}>{recipe.servings}</p>
                 </article>
                 <article className={styles.metaCard}>
-                  <p className={styles.metaLabel}>Kategorija</p>
-                  <p className={styles.metaValue}>Domaca kuhinja</p>
+                  <p className={styles.metaLabel}>{t("category")}</p>
+                  <p className={styles.metaValue}>{t("homeTitle")}</p>
                 </article>
               </div>
               <div className={styles.ratingBlock}>
@@ -226,11 +228,11 @@ export default function RecipeDetailsPage() {
                   helperText={
                     canRate
                       ? ratingLoading
-                        ? "Cuvanje ocene..."
+                        ? t('savingRating')
                         : recipe.currentUserRating
-                          ? `Tvoja ocena: ${recipe.currentUserRating}`
-                          : "Klikni na zvezdicu da ocenite recept"
-                      : "Autor recepta ne moze oceniti sopstveno jelo"
+                          ? t('yourRating', { rating: recipe.currentUserRating })
+                          : t('ratingHelper')
+                      : t('authorCannotRate')
                   }
                 />
               </div>
@@ -239,13 +241,13 @@ export default function RecipeDetailsPage() {
             <div className={styles.content}>
               {recipe.media && recipe.media.some(item => item.type === "image") ? (
                 <section className={styles.section}>
-                  <h2 className={styles.sectionTitle}>Fotografije</h2>
+                  <h2 className={styles.sectionTitle}>{t('photos')}</h2>
                   <div className={styles.mediaGrid}>
                     {recipe.media.filter(item => item.type === "image").map((item, idx) => (
                       <div key={`${item.url}-${idx}`} className={styles.mediaItem}>
                         <img
                           src={item.url}
-                          alt={`Fotografija recepta ${idx + 1}`}
+                          alt={t("recipePhotoAlt", { index: idx + 1 })}
                           className={styles.mediaImage}
                         />
                       </div>
@@ -255,7 +257,7 @@ export default function RecipeDetailsPage() {
               ) : null}
 
               <section className={styles.section}>
-                <h2 className={styles.sectionTitle}>Sastojci</h2>
+                <h2 className={styles.sectionTitle}>{t('ingredients')}</h2>
                 <ul className={styles.ingredients}>
                   {recipe.ingredients.map((ingredient, idx) => (
                     <li key={`${ingredient}-${idx}`}>
@@ -267,7 +269,7 @@ export default function RecipeDetailsPage() {
               </section>
 
               <section className={styles.section}>
-                <h2 className={styles.sectionTitle}>Koraci pripreme</h2>
+                <h2 className={styles.sectionTitle}>{t('preparationSteps')}</h2>
                 <ol className={styles.steps}>
                   {recipe.steps.map((step, idx) => (
                     <li key={`${step}-${idx}`}>
@@ -280,22 +282,22 @@ export default function RecipeDetailsPage() {
 
               {recipe.media && (recipe.media.some(item => item.type === "video") || recipe.media.some(item => isPdfUrl(item.url)) || recipe.media.some(item => isYoutubeUrl(item.url))) ? (
                 <section className={styles.section}>
-                  <h2 className={styles.sectionTitle}>Videi i dodatni sadržaj</h2>
+                  <h2 className={styles.sectionTitle}>{t('videosAndContent')}</h2>
                   <div className={styles.mediaGrid}>
                     {recipe.media.filter(item => item.type !== "image").map((item, idx) => (
                       <div key={`${item.url}-${idx}`} className={styles.mediaItem}>
                         {item.type === "pdf" || isPdfUrl(item.url) ? (
                           <div className={styles.pdfWrap}>
-                            <iframe src={item.url} title={`PDF dokument ${idx + 1}`} className={styles.pdfFrame} />
+                            <iframe src={item.url} title={t("pdfDocumentTitle", { index: idx + 1 })} className={styles.pdfFrame} />
                             <a href={item.url} target="_blank" rel="noopener noreferrer" className={styles.pdfLink}>
-                              Otvori PDF u novom tabu
+                              {t('openPdfNewTab')}
                             </a>
                           </div>
                         ) : isYoutubeUrl(item.url) ? (
                           <div className={styles.videoWrap}>
                             <iframe
                               src={toEmbedUrl(item.url)}
-                              title={`Video recepta ${idx + 1}`}
+                              title={t("recipeVideoTitle", { index: idx + 1 })}
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                               allowFullScreen
                             />
@@ -318,7 +320,7 @@ export default function RecipeDetailsPage() {
 
               {recipe.links && recipe.links.length > 0 ? (
                 <section className={styles.section}>
-                  <h2 className={styles.sectionTitle}>Korisni linkovi</h2>
+                  <h2 className={styles.sectionTitle}>{t('usefulLinks')}</h2>
                   <ul className={styles.links}>
                     {recipe.links.map((link, idx) => (
                       <li key={`${link.url}-${idx}`}>
@@ -329,7 +331,7 @@ export default function RecipeDetailsPage() {
                           className={styles.linkCard}
                         >
                           <span>{link.label}</span>
-                          <span>Otvori</span>
+                          <span>{t('open')}</span>
                         </a>
                       </li>
                     ))}

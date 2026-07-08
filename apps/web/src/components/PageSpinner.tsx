@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslation } from "../lib/useTranslation";
 import styles from "./PageSpinner.module.scss";
 
 type PageSpinnerProps = {
@@ -6,13 +9,15 @@ type PageSpinnerProps = {
 };
 
 export function PageSpinner({
-  label = "Ucitavanje...",
+  label,
   fullPage = false,
 }: PageSpinnerProps) {
+  const { t } = useTranslation();
+
   return (
     <div className={`${styles.wrap} ${fullPage ? styles.fullPage : ""}`}>
       <span className={styles.spinner} aria-hidden="true" />
-      <span className={styles.label}>{label}</span>
+      <span className={styles.label}>{label ?? t("loading")}</span>
     </div>
   );
 }
