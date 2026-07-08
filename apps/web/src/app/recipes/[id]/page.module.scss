@@ -233,16 +233,23 @@
 }
 
 .mediaGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+   gap: 14px;
 }
 
 .mediaItem {
-  border: 1px solid #dfe6e1;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #f6f9f7;
+   border: 1px solid #dfe6e1;
+   border-radius: 12px;
+   overflow: hidden;
+   background: #f6f9f7;
+   transition: transform 0.3s ease, box-shadow 0.3s ease;
+   cursor: pointer;
+}
+
+.mediaItem:hover {
+   transform: translateY(-2px);
+   box-shadow: 0 8px 20px rgba(23, 33, 30, 0.12);
 }
 
 .mediaImage {
@@ -252,6 +259,14 @@
   max-height: 340px;
   object-fit: cover;
   display: block;
+}
+
+.videoPlayer {
+  width: 100%;
+  min-height: 240px;
+  max-height: 420px;
+  display: block;
+  background: #000;
 }
 
 .videoWrap {
@@ -267,6 +282,25 @@
   width: 100%;
   height: 100%;
   border: 0;
+}
+
+.pdfWrap {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.pdfFrame {
+  width: 100%;
+  height: 320px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.pdfLink {
+  color: var(--primary);
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .links {
@@ -293,37 +327,41 @@
 }
 
 @media (max-width: 900px) {
-  .titleRow {
-    flex-direction: column;
-  }
+   .titleRow {
+     flex-direction: column;
+   }
 
-  .metaGrid {
-    grid-template-columns: 1fr;
-  }
+   .metaGrid {
+     grid-template-columns: 1fr;
+   }
 
-  .mediaGrid {
-    grid-template-columns: 1fr;
-  }
+   .mediaGrid {
+     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+   }
 }
 
 @media (max-width: 640px) {
-  .hero,
-  .content {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
+   .hero,
+   .content {
+     padding-left: 16px;
+     padding-right: 16px;
+   }
 
-  .section {
-    padding: 14px;
-  }
+   .section {
+     padding: 14px;
+   }
 
-  .actions {
-    width: 100%;
-  }
+   .actions {
+     width: 100%;
+   }
 
-  .editBtn,
-  .deleteBtn {
-    flex: 1;
-  }
+   .editBtn,
+   .deleteBtn {
+     flex: 1;
+   }
+
+   .mediaGrid {
+     grid-template-columns: 1fr;
+   }
 }
 

@@ -18,7 +18,7 @@ export type CreateRecipeInput = {
   steps: string[];
   preparationTime: string;
   servings: string;
-  media?: Array<{ type: 'image' | 'video'; url: string }>;
+  media?: Array<{ type: 'image' | 'video' | 'pdf'; url: string }>;
   links?: Array<{ label: string; url: string }>;
 };
 
@@ -236,7 +236,7 @@ export class RecipesService implements OnApplicationBootstrap {
 
     const recipes: Array<Omit<CreateRecipeInput, 'media' | 'links'> & {
       title: string;
-      media?: Array<{ type: 'image' | 'video'; url: string }>;
+      media?: Array<{ type: 'image' | 'video' | 'pdf'; url: string }>;
       links?: Array<{ label: string; url: string }>;
     }> = [
       {
@@ -534,10 +534,17 @@ export class RecipesService implements OnApplicationBootstrap {
     ];
 
     const videoPool = [
-      'https://www.youtube.com/watch?v=3AAdKl1UYZs',
-      'https://www.youtube.com/watch?v=6x8jQYv7KfA',
-      'https://www.youtube.com/watch?v=7L2F6r9f4bQ',
-      'https://www.youtube.com/watch?v=9f3RzKxS7gM',
+      'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+      'https://samplelib.com/lib/preview/mp4/sample-5s.mp4',
+      'https://samplelib.com/lib/preview/mp4/sample-10s.mp4',
+      'https://samplelib.com/lib/preview/mp4/sample-15s.mp4',
+    ];
+
+    const videoLinkPool = [
+      'https://www.youtube.com/watch?v=5MgBikgcWnY',
+      'https://www.youtube.com/watch?v=F-o8A4L9r4M',
+      'https://www.youtube.com/watch?v=iM_KMYulI_s',
+      'https://www.youtube.com/watch?v=R-H1n2q7X7M',
     ];
 
     const recipes = await this.recipeModel.find().sort({ createdAt: 1 });
@@ -568,7 +575,7 @@ export class RecipesService implements OnApplicationBootstrap {
       if (links.length === 0 && index % 4 === 0) {
         links.push({
           label: 'Video priprema',
-          url: videoPool[(index + 1) % videoPool.length],
+          url: videoLinkPool[(index + 1) % videoLinkPool.length],
         });
         changed = true;
       }

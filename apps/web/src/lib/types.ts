@@ -18,7 +18,7 @@ export type AuthResponse = {
 };
 
 export type Media = {
-  type: 'image' | 'video';
+  type: 'image' | 'video' | 'pdf';
   url: string;
 };
 

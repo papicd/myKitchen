@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useState } from "react";
 import { SuccessDialog } from "../../components/SuccessDialog";
 import { createRecipe } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import styles from "../page.module.scss";
 
-type MediaItem = { type: 'image' | 'video'; url: string };
+type MediaItem = { type: 'image' | 'video' | 'pdf'; url: string };
 type LinkItem = { label: string; url: string };
 
 export default function AddRecipePage() {
@@ -19,7 +19,7 @@ export default function AddRecipePage() {
 
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [mediaUrl, setMediaUrl] = useState("");
-  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'pdf'>('image');
 
   const [linkItems, setLinkItems] = useState<LinkItem[]>([]);
   const [linkLabel, setLinkLabel] = useState("");
@@ -68,11 +68,70 @@ export default function AddRecipePage() {
 
   function addMedia() {
     if (!mediaUrl.trim()) {
-      setError("Unesite URL slike ili videa");
+      setError("Unesite URL slike, videa ili PDF-a");
       return;
     }
     setMediaItems([...mediaItems, { type: mediaType, url: mediaUrl }]);
     setMediaUrl("");
+  }
+
+  function detectMediaType(file: File): MediaItem["type"] | null {
+    if (file.type.startsWith("image/")) {
+      return "image";
+    }
+
+    if (file.type.startsWith("video/")) {
+      return "video";
+    }
+
+    if (file.type === "application/pdf") {
+      return "pdf";
+    }
+
+    return null;
+  }
+
+  async function handleLocalMediaUpload(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+
+    if (files.length === 0) {
+      return;
+    }
+
+    try {
+      const items = await Promise.all(
+        files.map(
+          (file) =>
+            new Promise<MediaItem>((resolve, reject) => {
+              const media = detectMediaType(file);
+
+              if (!media) {
+                reject(new Error(`Format fajla nije podrzan: ${file.name}`));
+                return;
+              }
+
+              const reader = new FileReader();
+              reader.onload = () => {
+                if (typeof reader.result !== "string") {
+                  reject(new Error(`Nije moguce ucitati fajl: ${file.name}`));
+                  return;
+                }
+
+                resolve({ type: media, url: reader.result });
+              };
+              reader.onerror = () => reject(new Error(`Greska pri citanju fajla: ${file.name}`));
+              reader.readAsDataURL(file);
+            }),
+        ),
+      );
+
+      setMediaItems((prev) => [...prev, ...items]);
+      setError("");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload fajlova nije uspeo");
+    } finally {
+      event.target.value = "";
+    }
   }
 
   function removeMedia(index: number) {
@@ -158,12 +217,23 @@ export default function AddRecipePage() {
 
         <div className={styles.section}>
           <h3>Medija (opciono)</h3>
-          <p className={styles.hint}>Dodaj slike ili video linkove recepta.</p>
+          <p className={styles.hint}>Dodaj lokalne fajlove (slika/video/PDF) ili URL medije.</p>
+          <div className={styles.field}>
+            <label htmlFor="mediaFiles">Upload fajlova sa racunara</label>
+            <input
+              id="mediaFiles"
+              type="file"
+              accept="image/*,video/*,application/pdf"
+              multiple
+              onChange={handleLocalMediaUpload}
+            />
+          </div>
           <div className={styles.field}>
             <label>Tip medije</label>
-            <select value={mediaType} onChange={(e) => setMediaType(e.target.value as 'image' | 'video')}>
+            <select value={mediaType} onChange={(e) => setMediaType(e.target.value as 'image' | 'video' | 'pdf')}>
               <option value="image">Slika</option>
-              <option value="video">Video (YouTube)</option>
+              <option value="video">Video</option>
+              <option value="pdf">PDF</option>
             </select>
           </div>
           <div className={styles.field}>
@@ -171,7 +241,13 @@ export default function AddRecipePage() {
             <input
               value={mediaUrl}
               onChange={(e) => setMediaUrl(e.target.value)}
-              placeholder={mediaType === 'image' ? 'https://...' : 'https://youtube.com/watch?v=...'}
+              placeholder={
+                mediaType === "image"
+                  ? "https://..."
+                  : mediaType === "video"
+                    ? "https://... ili mp4 URL"
+                    : "https://...pdf"
+              }
             />
           </div>
           <button type="button" className={styles.secondaryBtn} onClick={addMedia}>
@@ -181,7 +257,10 @@ export default function AddRecipePage() {
             <div className={styles.itemsList}>
               {mediaItems.map((item, idx) => (
                 <div key={idx} className={styles.listItem}>
-                  <span>{item.type === 'image' ? '🖼' : '🎬'} {item.url}</span>
+                  <span>
+                    {item.type === 'image' ? '🖼' : item.type === 'video' ? '🎬' : '📄'} {item.url.slice(0, 90)}
+                    {item.url.length > 90 ? "..." : ""}
+                  </span>
                   <button type="button" className={styles.removeBtn} onClick={() => removeMedia(idx)}>
                     ✕
                   </button>

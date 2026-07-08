@@ -104,7 +104,7 @@ export function createRecipe(
     steps: string[];
     preparationTime: string;
     servings: string;
-    media?: Array<{ type: 'image' | 'video'; url: string }>;
+    media?: Array<{ type: 'image' | 'video' | 'pdf'; url: string }>;
     links?: Array<{ label: string; url: string }>;
   },
   token: string,
@@ -126,7 +126,7 @@ export function updateRecipe(
     steps: string[];
     preparationTime: string;
     servings: string;
-    media?: Array<{ type: 'image' | 'video'; url: string }>;
+    media?: Array<{ type: 'image' | 'video' | 'pdf'; url: string }>;
     links?: Array<{ label: string; url: string }>;
   },
   token: string,

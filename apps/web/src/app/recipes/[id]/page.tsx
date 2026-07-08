@@ -30,6 +30,14 @@ function toEmbedUrl(url: string) {
   return url;
 }
 
+function isYoutubeUrl(url: string) {
+  return url.includes("youtube.com/") || url.includes("youtu.be/");
+}
+
+function isPdfUrl(url: string) {
+  return url.startsWith("data:application/pdf") || url.toLowerCase().includes(".pdf");
+}
+
 export default function RecipeDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -229,28 +237,17 @@ export default function RecipeDetailsPage() {
             </header>
 
             <div className={styles.content}>
-              {recipe.media && recipe.media.length > 0 ? (
+              {recipe.media && recipe.media.some(item => item.type === "image") ? (
                 <section className={styles.section}>
-                  <h2 className={styles.sectionTitle}>Foto i video</h2>
+                  <h2 className={styles.sectionTitle}>Fotografije</h2>
                   <div className={styles.mediaGrid}>
-                    {recipe.media.map((item, idx) => (
+                    {recipe.media.filter(item => item.type === "image").map((item, idx) => (
                       <div key={`${item.url}-${idx}`} className={styles.mediaItem}>
-                        {item.type === "image" ? (
-                          <img
-                            src={item.url}
-                            alt={`Fotografija recepta ${idx + 1}`}
-                            className={styles.mediaImage}
-                          />
-                        ) : (
-                          <div className={styles.videoWrap}>
-                            <iframe
-                              src={toEmbedUrl(item.url)}
-                              title={`Video recepta ${idx + 1}`}
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                            />
-                          </div>
-                        )}
+                        <img
+                          src={item.url}
+                          alt={`Fotografija recepta ${idx + 1}`}
+                          className={styles.mediaImage}
+                        />
                       </div>
                     ))}
                   </div>
@@ -280,6 +277,44 @@ export default function RecipeDetailsPage() {
                   ))}
                 </ol>
               </section>
+
+              {recipe.media && (recipe.media.some(item => item.type === "video") || recipe.media.some(item => isPdfUrl(item.url)) || recipe.media.some(item => isYoutubeUrl(item.url))) ? (
+                <section className={styles.section}>
+                  <h2 className={styles.sectionTitle}>Videi i dodatni sadržaj</h2>
+                  <div className={styles.mediaGrid}>
+                    {recipe.media.filter(item => item.type !== "image").map((item, idx) => (
+                      <div key={`${item.url}-${idx}`} className={styles.mediaItem}>
+                        {item.type === "pdf" || isPdfUrl(item.url) ? (
+                          <div className={styles.pdfWrap}>
+                            <iframe src={item.url} title={`PDF dokument ${idx + 1}`} className={styles.pdfFrame} />
+                            <a href={item.url} target="_blank" rel="noopener noreferrer" className={styles.pdfLink}>
+                              Otvori PDF u novom tabu
+                            </a>
+                          </div>
+                        ) : isYoutubeUrl(item.url) ? (
+                          <div className={styles.videoWrap}>
+                            <iframe
+                              src={toEmbedUrl(item.url)}
+                              title={`Video recepta ${idx + 1}`}
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          </div>
+                        ) : (
+                          <video
+                            className={styles.videoPlayer}
+                            controls
+                            playsInline
+                            preload="metadata"
+                            src={item.url}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
 
               {recipe.links && recipe.links.length > 0 ? (
                 <section className={styles.section}>

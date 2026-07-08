@@ -29,13 +29,13 @@ export class Recipe {
   @Prop({
     type: [
       {
-        type: { type: String, enum: ['image', 'video'], required: true },
+        type: { type: String, enum: ['image', 'video', 'pdf'], required: true },
         url: { type: String, required: true },
       },
     ],
     default: [],
   })
-  media?: Array<{ type: 'image' | 'video'; url: string }>;
+  media?: Array<{ type: 'image' | 'video' | 'pdf'; url: string }>;
 
   @Prop({
     type: [
