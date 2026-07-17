@@ -10,6 +10,9 @@ export function Header() {
   const { user, isLoggedIn, logout } = useAuth();
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const profileInitials = user
+    ? `${user.firstName.slice(0, 1)}${user.lastName.slice(0, 1)}`.toUpperCase()
+    : "MK";
 
   const close = () => setMenuOpen(false);
 
@@ -18,7 +21,13 @@ export function Header() {
       <div className={styles.inner}>
         <div className={styles.topRow}>
           <Link className={styles.brand} href="/" onClick={close}>
-            {t("appName")}
+            <span className={styles.brandMark} aria-hidden="true">
+              🍲
+            </span>
+            <span className={styles.brandText}>
+              <strong>{t("appName")}</strong>
+              <small>{t("homeTitle")}</small>
+            </span>
           </Link>
           <button
             className={styles.menuToggle}
@@ -47,7 +56,7 @@ export function Header() {
             {isLoggedIn ? (
               <>
                 <Link className={styles.profile} href="/profile" title={t("profile")} onClick={close}>
-                  P
+                  {profileInitials}
                 </Link>
                 <button
                   className={styles.logout}
