@@ -80,10 +80,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser) as User);
+      try {
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser) as User);
+      } catch {
+        // Corrupted localStorage auth payload should not break app startup.
+        logout();
+      }
     }
-  }, [logoutOnExpiry]);
+  }, [logout, logoutOnExpiry]);
 
   useEffect(() => {
     const handleExpired = () => logoutOnExpiry();

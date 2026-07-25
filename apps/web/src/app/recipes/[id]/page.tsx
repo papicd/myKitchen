@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { ConfirmDialog } from "../../../components/ConfirmDialog";
 import { PageSpinner } from "../../../components/PageSpinner";
 import { StarRating } from "../../../components/StarRating";
 import {
+  addRecipeComment,
   deleteRecipe,
   getRecipe,
   getSavedRecipes,
@@ -39,11 +40,24 @@ function isPdfUrl(url: string) {
   return url.startsWith("data:application/pdf") || url.toLowerCase().includes(".pdf");
 }
 
+function formatCommentDate(value: string, locale: "en" | "sr") {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat(locale === "sr" ? "sr-RS" : "en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
 export default function RecipeDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { user, token, isLoggedIn } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [recipe, setRecipe] = useState<RecipeDetails | null>(null);
   const [error, setError] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
@@ -51,6 +65,8 @@ export default function RecipeDetailsPage() {
   const [ratingLoading, setRatingLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [commentLoading, setCommentLoading] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn || !token) {
@@ -125,6 +141,27 @@ export default function RecipeDetailsPage() {
       setError(err instanceof Error ? err.message : t("saveFailed"));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleCommentSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!token || !commentText.trim()) {
+      return;
+    }
+
+    setCommentLoading(true);
+    setError("");
+
+    try {
+      const updatedRecipe = await addRecipeComment(params.id, commentText, token);
+      setRecipe(updatedRecipe);
+      setCommentText("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("commentError"));
+    } finally {
+      setCommentLoading(false);
     }
   }
 
@@ -338,6 +375,75 @@ export default function RecipeDetailsPage() {
                   </ul>
                 </section>
               ) : null}
+
+              <section className={styles.section}>
+                <div className={styles.commentsHeader}>
+                  <div>
+                    <h2 className={styles.sectionTitle}>{t("comments")}</h2>
+                    <p className={styles.commentsHint}>{t("commentsHint")}</p>
+                  </div>
+                  <span className={styles.commentCount}>
+                    {t("commentsCount", { count: recipe.comments.length })}
+                  </span>
+                </div>
+
+                <form className={styles.commentForm} onSubmit={handleCommentSubmit}>
+                  <label htmlFor="comment" className={styles.commentLabel}>
+                    {t("addComment")}
+                  </label>
+                  <textarea
+                    id="comment"
+                    className={styles.commentInput}
+                    value={commentText}
+                    maxLength={1000}
+                    rows={4}
+                    placeholder={t("commentPlaceholder")}
+                    onChange={(event) => setCommentText(event.target.value)}
+                  />
+                  <div className={styles.commentFormFooter}>
+                    <span className={styles.commentLimit}>
+                      {commentText.length}/1000
+                    </span>
+                    <button
+                      className={styles.commentSubmit}
+                      type="submit"
+                      disabled={commentLoading || !commentText.trim()}
+                    >
+                      {commentLoading ? t("saving") : t("publishComment")}
+                    </button>
+                  </div>
+                </form>
+
+                <div className={styles.commentList}>
+                  {recipe.comments.length === 0 ? (
+                    <p className={styles.noComments}>{t("noComments")}</p>
+                  ) : (
+                    recipe.comments.map((comment) => {
+                      const authorName = `${comment.author.firstName} ${comment.author.lastName}`.trim() || comment.author.username;
+
+                      return (
+                        <article
+                          key={comment.id}
+                          className={`${styles.commentCard} ${comment.isRecipeOwner ? styles.ownerComment : ""}`}
+                        >
+                          <div className={styles.commentMeta}>
+                            <div>
+                              <p className={styles.commentAuthor}>{authorName}</p>
+                              <p className={styles.commentDate}>
+                                {formatCommentDate(comment.createdAt, language)}
+                              </p>
+                            </div>
+                            {comment.isRecipeOwner ? (
+                              <span className={styles.ownerBadge}>{t("recipeOwner")}</span>
+                            ) : null}
+                          </div>
+                          <p className={styles.commentText}>{comment.text}</p>
+                        </article>
+                      );
+                    })
+                  )}
+                </div>
+              </section>
             </div>
           </article>
         ) : null}

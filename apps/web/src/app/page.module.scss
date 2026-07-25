@@ -17,15 +17,16 @@
 
   h1 {
     margin: 12px 0 18px;
-    font-size: clamp(38px, 6vw, 74px);
+    font-size: var(--fs-home-hero-title);
     line-height: 1;
+    font-family: var(--font-family-heading);
   }
 
   p {
     margin: 0;
     max-width: 680px;
     color: var(--muted);
-    font-size: 19px;
+    font-size: var(--fs-body-lg);
     line-height: 1.7;
   }
 }
@@ -46,7 +47,7 @@
 
 .homeHeroContent,
 .homeHeroVisual {
-  border: 1px solid rgba(217, 222, 216, 0.9);
+  border: 1px solid var(--border-soft);
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.82);
   box-shadow: 0 24px 60px rgba(31, 37, 40, 0.08);
@@ -58,9 +59,10 @@
 
   h1 {
     margin: 12px 0 18px;
-    font-size: clamp(42px, 6vw, 76px);
+    font-size: var(--fs-home-hero-title);
     line-height: 0.96;
     letter-spacing: -0.04em;
+    font-family: var(--font-family-heading);
   }
 }
 
@@ -68,7 +70,7 @@
   margin: 0;
   max-width: 640px;
   color: var(--muted);
-  font-size: 18px;
+  font-size: var(--fs-body-lg);
   line-height: 1.75;
 }
 
@@ -83,13 +85,13 @@
   display: grid;
   gap: 6px;
   padding: 14px 16px;
-  border: 1px solid rgba(217, 222, 216, 0.9);
+  border: 1px solid var(--border-soft);
   border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff, #f8fbf9);
+  background: linear-gradient(180deg, var(--white), var(--panel-soft));
 
   strong {
     color: var(--primary);
-    font-size: 12px;
+    font-size: var(--fs-label-sm);
     font-weight: 900;
     letter-spacing: 0.12em;
   }
@@ -114,7 +116,7 @@
 .miniShowcaseCard,
 .quickCard,
 .homeFeatureCard {
-  border: 1px solid rgba(217, 222, 216, 0.9);
+  border: 1px solid var(--border-soft);
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 16px 36px rgba(31, 37, 40, 0.06);
@@ -125,7 +127,8 @@
 
   h2 {
     margin: 14px 0 10px;
-    font-size: 28px;
+    font-size: var(--fs-title-lg);
+    font-family: var(--font-family-heading);
   }
 
   p {
@@ -145,9 +148,9 @@
   width: fit-content;
   border-radius: 999px;
   padding: 0 12px;
-  background: #e8f4f1;
+  background: var(--accent-soft);
   color: var(--primary);
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -169,8 +172,8 @@
     min-height: 36px;
     border-radius: 999px;
     padding: 0 12px;
-    background: #f4f7f5;
-    color: #31403c;
+    background: var(--chip-bg);
+    color: var(--chip-text);
     font-size: 13px;
     font-weight: 800;
   }
@@ -181,7 +184,8 @@
 
   h3 {
     margin: 10px 0 8px;
-    font-size: 22px;
+    font-size: var(--fs-title-md);
+    font-family: var(--font-family-heading);
   }
 
   p {
@@ -236,8 +240,9 @@
 
   h2 {
     margin: 0;
-    font-size: clamp(30px, 4vw, 42px);
+    font-size: var(--fs-home-section-title);
     line-height: 1.05;
+    font-family: var(--font-family-heading);
   }
 
   p {
@@ -262,7 +267,8 @@
 
   h3 {
     margin: 0;
-    font-size: 22px;
+    font-size: var(--fs-title-md);
+    font-family: var(--font-family-heading);
   }
 
   p {
@@ -338,7 +344,7 @@
     border-radius: 6px;
     padding: 0 16px;
     background: var(--primary);
-    color: #ffffff;
+    color: var(--text-on-dark);
     font-weight: 800;
     text-decoration: none;
     box-shadow: 0 14px 30px rgba(29, 107, 95, 0.18);
@@ -352,7 +358,7 @@
 }
 
 .heroActions .heroSecondaryAction {
-  background: #ffffff;
+  background: var(--white);
   color: var(--foreground);
   border-color: var(--border);
   box-shadow: 0 10px 24px rgba(31, 37, 40, 0.08);
@@ -398,7 +404,7 @@
 .pageHeader {
   display: flex;
   justify-content: space-between;
-  align-items: end;
+  align-items: flex-end;
   gap: 24px;
   margin: 18px 0 6px;
 
@@ -451,7 +457,7 @@
   margin-top: 14px;
   border-radius: 999px;
   padding: 0 10px;
-  background: #e8f4f1;
+  background: var(--accent-soft);
   color: var(--primary);
   font-size: 12px;
   font-weight: 900;
@@ -522,7 +528,7 @@
 .saveBtnActive {
   border-color: var(--primary);
   color: var(--primary);
-  background: #e8f4f1;
+  background: var(--accent-soft);
 }
 
 .tabRow {
@@ -546,7 +552,7 @@
 
 .tabBtnActive {
   border-color: var(--primary);
-  background: #e8f4f1;
+  background: var(--accent-soft);
   color: var(--primary);
 }
 

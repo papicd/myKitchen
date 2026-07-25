@@ -10,8 +10,10 @@ export function Header() {
   const { user, isLoggedIn, logout } = useAuth();
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const firstInitial = String(user?.firstName ?? "").slice(0, 1);
+  const lastInitial = String(user?.lastName ?? "").slice(0, 1);
   const profileInitials = user
-    ? `${user.firstName.slice(0, 1)}${user.lastName.slice(0, 1)}`.toUpperCase()
+    ? `${firstInitial}${lastInitial}`.trim().toUpperCase() || "MK"
     : "MK";
 
   const close = () => setMenuOpen(false);

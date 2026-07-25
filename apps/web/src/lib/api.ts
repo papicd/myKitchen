@@ -142,6 +142,14 @@ export function rateRecipe(id: string, value: number, token: string) {
   });
 }
 
+export function addRecipeComment(id: string, text: string, token: string) {
+  return request<RecipeDetails>(`/recipes/${id}/comments`, {
+    token,
+    body: { text },
+    method: "POST",
+  });
+}
+
 export function getUsers(token: string) {
   return request<AdminUser[]>("/users", { token });
 }

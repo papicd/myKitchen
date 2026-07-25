@@ -37,6 +37,14 @@ export type RecipeAuthor = {
   isRecommended: boolean;
 };
 
+export type RecipeComment = {
+  id: string;
+  text: string;
+  createdAt: string;
+  isRecipeOwner: boolean;
+  author: RecipeAuthor;
+};
+
 export type RecipeListItem = {
   id: string;
   title: string;
@@ -57,6 +65,7 @@ export type RecipeDetails = RecipeListItem & {
   steps: string[];
   createdBy: string;
   currentUserRating: number | null;
+  comments: RecipeComment[];
   media?: Media[];
   links?: Link[];
 };

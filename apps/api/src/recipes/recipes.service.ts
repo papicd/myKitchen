@@ -22,6 +22,10 @@ export type CreateRecipeInput = {
   links?: Array<{ label: string; url: string }>;
 };
 
+export type CreateCommentInput = {
+  text?: string;
+};
+
 @Injectable()
 export class RecipesService implements OnApplicationBootstrap {
   constructor(
@@ -47,8 +51,7 @@ export class RecipesService implements OnApplicationBootstrap {
       throw new NotFoundException('Recept nije pronadjen');
     }
 
-    const [details] = await this.attachAuthors([this.toDetails(recipe, currentUserId)]);
-    return details;
+    return this.toDetailsResponse(recipe, currentUserId);
   }
 
   async findByUser(userId: string) {
@@ -91,8 +94,7 @@ export class RecipesService implements OnApplicationBootstrap {
       createdBy: new Types.ObjectId(userId),
     });
 
-    const [details] = await this.attachAuthors([this.toDetails(recipe, userId)]);
-    return details;
+    return this.toDetailsResponse(recipe, userId);
   }
 
   async delete(id: string, userId: string, isAdmin: boolean) {
@@ -146,8 +148,7 @@ export class RecipesService implements OnApplicationBootstrap {
       throw new NotFoundException('Recept nije moguce izvrsiti');
     }
 
-    const [details] = await this.attachAuthors([this.toDetails(updated, userId)]);
-    return details;
+    return this.toDetailsResponse(updated, userId);
   }
 
   async rateRecipe(id: string, userId: string, value: number) {
@@ -177,8 +178,45 @@ export class RecipesService implements OnApplicationBootstrap {
     recipe.ratings = ratings;
     await recipe.save();
 
-    const [details] = await this.attachAuthors([this.toDetails(recipe, userId)]);
-    return details;
+    return this.toDetailsResponse(recipe, userId);
+  }
+
+  async addComment(id: string, userId: string, input: CreateCommentInput) {
+    const text = (input.text ?? '').trim();
+
+    if (!text) {
+      throw new BadRequestException('Komentar ne moze biti prazan');
+    }
+
+    if (text.length > 1000) {
+      throw new BadRequestException('Komentar moze imati najvise 1000 karaktera');
+    }
+
+    const [recipe, user] = await Promise.all([
+      this.recipeModel.findById(id),
+      this.usersService.findById(userId),
+    ]);
+
+    if (!recipe) {
+      throw new NotFoundException('Recept nije pronadjen');
+    }
+
+    if (!user) {
+      throw new NotFoundException('Korisnik nije pronadjen');
+    }
+
+    recipe.comments = [
+      ...(recipe.comments ?? []),
+      {
+        userId: new Types.ObjectId(userId),
+        text,
+        createdAt: new Date(),
+      },
+    ];
+
+    await recipe.save();
+
+    return this.toDetailsResponse(recipe, userId);
   }
 
   async toggleSavedRecipe(userId: string, recipeId: string) {
@@ -610,6 +648,33 @@ export class RecipesService implements OnApplicationBootstrap {
     }));
   }
 
+  private async attachCommentAuthors<
+    T extends {
+      comments: Array<{ author: { id: string } }>;
+    },
+  >(item: T) {
+    const authors = await this.usersService.findPublicByIds(
+      Array.from(new Set(item.comments.map((comment) => comment.author.id))),
+    );
+    const authorMap = new Map(authors.map((author) => [author.id, author]));
+
+    return {
+      ...item,
+      comments: item.comments.map((comment) => ({
+        ...comment,
+        author: authorMap.get(comment.author.id) ?? { id: comment.author.id, firstName: 'Nepoznat', lastName: '', username: 'korisnik', email: '', isAdmin: false, isRecommended: false },
+      })),
+    };
+  }
+
+  private async toDetailsResponse(
+    recipe: Recipe & { _id?: unknown; createdBy?: unknown },
+    currentUserId?: string,
+  ) {
+    const [details] = await this.attachAuthors([this.toDetails(recipe, currentUserId)]);
+    return this.attachCommentAuthors(details);
+  }
+
   private async syncRecommendedAuthorFlags() {
     const recommendedUserIds = await this.usersService.getRecommendedUserIds();
 
@@ -679,6 +744,15 @@ export class RecipesService implements OnApplicationBootstrap {
       steps: recipe.steps,
       createdBy: String(recipe.createdBy),
       currentUserRating: currentUserRating?.value ?? null,
+      comments: (recipe.comments ?? []).map((comment) => ({
+        id: String(comment._id),
+        text: comment.text,
+        createdAt: (comment.createdAt ?? new Date()).toISOString(),
+        isRecipeOwner: String(comment.userId) === String(recipe.createdBy),
+        author: {
+          id: String(comment.userId),
+        },
+      })),
       ...(recipe.media && recipe.media.length > 0 ? { media: recipe.media } : {}),
       ...(recipe.links && recipe.links.length > 0 ? { links: recipe.links } : {}),
     };

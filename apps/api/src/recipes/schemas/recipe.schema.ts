@@ -59,6 +59,23 @@ export class Recipe {
   })
   ratings?: Array<{ userId: Types.ObjectId; value: number }>;
 
+  @Prop({
+    type: [
+      {
+        userId: { type: Types.ObjectId, ref: 'User', required: true },
+        text: { type: String, required: true, trim: true, maxlength: 1000 },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+    default: [],
+  })
+  comments?: Array<{
+    _id?: Types.ObjectId;
+    userId: Types.ObjectId;
+    text: string;
+    createdAt?: Date;
+  }>;
+
   @Prop({ default: false })
   postedByRecommendedUser: boolean;
 

@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -63,7 +64,9 @@ const C = {
 
 // ─────────────────────────────── API ────────────────────────────────────────
 const API_URL =
-  Platform.OS === 'android' ? 'http://10.0.2.2:4000/api' : 'http://localhost:4000/api';
+  process.env.EXPO_PUBLIC_API_URL?.trim() ||
+  (Platform.OS === 'android' ? 'http://10.0.2.2:4000/api' : 'http://localhost:4000/api');
+const API_TIMEOUT_MS = 12000;
 
 async function api<T>(
   path: string,
@@ -71,14 +74,31 @@ async function api<T>(
   body?: unknown,
   method?: string,
 ): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    method: method ?? (body ? 'POST' : 'GET'),
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  let res: Response;
+
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method: method ?? (body ? 'POST' : 'GET'),
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    const isTimeout = error instanceof Error && error.name === 'AbortError';
+    throw new Error(
+      isTimeout
+        ? `Server nije odgovorio na vreme. Proveri API: ${API_URL}`
+        : `Nije moguce povezivanje sa API serverom: ${API_URL}`,
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(data?.message ?? 'Zahtev nije uspeo');
   return data as T;
@@ -319,12 +339,24 @@ function HomeScreen({
 // ─────────────────────────────── Screen: Recipes ────────────────────────────
 
 function RecipesScreen({
-  recipes, loading, error, onOpen,
+  recipes, loading, error, onOpen, onRefresh, refreshing,
 }: {
-  recipes: RecipeListItem[]; loading: boolean; error: string; onOpen: (id: string) => void;
+  recipes: RecipeListItem[];
+  loading: boolean;
+  error: string;
+  onOpen: (id: string) => void;
+  onRefresh: () => void;
+  refreshing: boolean;
 }) {
   return (
-    <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={s.scroll}
+      contentContainerStyle={s.content}
+      showsVerticalScrollIndicator={false}
+      refreshControl={(
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />
+      )}
+    >
       <View style={{ gap: 4 }}>
         <Eyebrow label="RECEPTI" />
         <SectionTitle title="Domaća kuhinja" subtitle="Kratak pregled je javan, detalji traže prijavu." />
@@ -410,6 +442,7 @@ function FindScreen({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [detail, setDetail] = useState<RecipeDetails | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
   if (!isLoggedIn) {
     return (
@@ -425,6 +458,7 @@ function FindScreen({
   async function search() {
     if (!query.trim() || !token) return;
     setLoading(true); setError('');
+    setHasSearched(true);
     try {
       const res = await api<RecipeListItem[]>(`/recipes/search?q=${encodeURIComponent(query)}`, token);
       setResults(res);
@@ -464,6 +498,9 @@ function FindScreen({
           <Text style={s.loadingText}>Pretraga...</Text>
         </View>
       )}
+      {!loading && hasSearched && results.length === 0 ? (
+        <EmptyState icon="🍳" title="Nema rezultata" subtitle="Probaj druge namirnice ili manje pojmova." />
+      ) : null}
       {results.map((r) => <RecipeCard key={r.id} recipe={r} onPress={() => openDetail(r.id)} />)}
     </ScrollView>
   );
@@ -638,13 +675,34 @@ function ProfileScreen({
 }) {
   const [myRecipes, setMyRecipes] = useState<RecipeListItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function loadMyRecipes() {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const data = await api<RecipeListItem[]>('/recipes/mine', token);
+      setMyRecipes(data);
+    } catch {
+      // Intentionally silent here to keep the profile view usable.
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function refreshMyRecipes() {
+    if (!token) return;
+    setRefreshing(true);
+    try {
+      const data = await api<RecipeListItem[]>('/recipes/mine', token);
+      setMyRecipes(data);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   useEffect(() => {
-    if (token) {
-      setLoading(true);
-      api<RecipeListItem[]>('/recipes/mine', token)
-        .then(setMyRecipes).catch(() => null).finally(() => setLoading(false));
-    }
+    loadMyRecipes();
   }, [token]);
 
   if (!isLoggedIn) {
@@ -659,7 +717,14 @@ function ProfileScreen({
   const initials = user ? `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}`.toUpperCase() : '?';
 
   return (
-    <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={s.scroll}
+      contentContainerStyle={s.content}
+      showsVerticalScrollIndicator={false}
+      refreshControl={(
+        <RefreshControl refreshing={refreshing} onRefresh={refreshMyRecipes} tintColor={C.primary} />
+      )}
+    >
       <View style={s.profileCard}>
         <View style={s.profileAvatarWrap}><Text style={s.profileAvatarText}>{initials}</Text></View>
         <Text style={s.profileName}>{user?.firstName} {user?.lastName}</Text>
@@ -747,16 +812,40 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
   const [recipesLoading, setRecipesLoading] = useState(true);
+  const [recipesRefreshing, setRecipesRefreshing] = useState(false);
   const [recipesError, setRecipesError] = useState('');
   const [detailRecipe, setDetailRecipe] = useState<RecipeDetails | null>(null);
 
   const isLoggedIn = Boolean(token && user);
 
+  async function loadRecipes() {
+    setRecipesLoading(true);
+    setRecipesError('');
+    try {
+      const data = await api<RecipeListItem[]>('/recipes');
+      setRecipes(data);
+    } catch {
+      setRecipesError('Recepti trenutno nisu dostupni.');
+    } finally {
+      setRecipesLoading(false);
+    }
+  }
+
+  async function refreshRecipes() {
+    setRecipesRefreshing(true);
+    setRecipesError('');
+    try {
+      const data = await api<RecipeListItem[]>('/recipes');
+      setRecipes(data);
+    } catch {
+      setRecipesError('Recepti trenutno nisu dostupni.');
+    } finally {
+      setRecipesRefreshing(false);
+    }
+  }
+
   useEffect(() => {
-    api<RecipeListItem[]>('/recipes')
-      .then(setRecipes)
-      .catch(() => setRecipesError('Recepti trenutno nisu dostupni.'))
-      .finally(() => setRecipesLoading(false));
+    loadRecipes();
   }, []);
 
   async function login(email: string, password: string) {
@@ -802,7 +891,16 @@ export default function App() {
       case 'home':
         return <HomeScreen isLoggedIn={isLoggedIn} user={user} onNavigate={handleNavigate} />;
       case 'recipes':
-        return <RecipesScreen recipes={recipes} loading={recipesLoading} error={recipesError} onOpen={openRecipe} />;
+        return (
+          <RecipesScreen
+            recipes={recipes}
+            loading={recipesLoading}
+            error={recipesError}
+            onOpen={openRecipe}
+            onRefresh={refreshRecipes}
+            refreshing={recipesRefreshing}
+          />
+        );
       case 'find':
         return <FindScreen token={token} isLoggedIn={isLoggedIn} onNavigate={handleNavigate} />;
       case 'add':

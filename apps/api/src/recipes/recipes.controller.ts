@@ -13,7 +13,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { CreateRecipeInput, RecipesService } from './recipes.service';
+import { CreateCommentInput, CreateRecipeInput, RecipesService } from './recipes.service';
 
 @Controller('recipes')
 export class RecipesController {
@@ -89,6 +89,16 @@ export class RecipesController {
   ) {
     const { userId } = this.getUser(authorization);
     return this.recipesService.rateRecipe(id, userId, Number(body.value));
+  }
+
+  @Post(':id/comments')
+  addComment(
+    @Param('id') id: string,
+    @Body() body: CreateCommentInput,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const { userId } = this.getUser(authorization);
+    return this.recipesService.addComment(id, userId, body);
   }
 
   @Post(':id/save')

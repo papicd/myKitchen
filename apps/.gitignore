@@ -1,0 +1,11 @@
+# IDE settings
+.idea/
+
+# Local Next.js/generated check folders
+.next-dev/
+.next-runtime/
+.tmp-check/
+web/.next-dev/
+web/.next-runtime/
+web/.tmp-check/
+
