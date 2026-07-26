@@ -3,9 +3,11 @@
 
 # Local Next.js/generated check folders
 .next-dev/
+.next-build/
 .next-runtime/
 .tmp-check/
 web/.next-dev/
+web/.next-build/
 web/.next-runtime/
 web/.tmp-check/
 

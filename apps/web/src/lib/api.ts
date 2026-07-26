@@ -95,6 +95,20 @@ export function getUserProfile(userId: string) {
   return request<AdminUser>(`/users/${userId}`);
 }
 
+export function updateMyProfile(
+  body: {
+    firstName?: string;
+    lastName?: string;
+    username?: string;
+    email?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  },
+  token: string,
+) {
+  return request<AuthResponse>('/users/me', { token, body, method: 'PATCH' });
+}
+
 export function createRecipe(
   body: {
     title: string;

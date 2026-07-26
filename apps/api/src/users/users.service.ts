@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
   OnApplicationBootstrap,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -19,6 +21,15 @@ export type CreateUserInput = {
   password: string;
   isAdmin?: boolean;
   isRecommended?: boolean;
+};
+
+export type UpdateOwnProfileInput = {
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  email?: string;
+  currentPassword?: string;
+  newPassword?: string;
 };
 
 @Injectable()
@@ -150,6 +161,81 @@ export class UsersService implements OnApplicationBootstrap {
     return { saved: true };
   }
 
+  async updateOwnProfile(userId: string, input: UpdateOwnProfileInput) {
+    const user = await this.userModel.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('Korisnik nije pronadjen');
+    }
+
+    const firstName = this.optionalTrim(input.firstName);
+    const lastName = this.optionalTrim(input.lastName);
+    const username = this.optionalTrim(input.username)?.toLowerCase();
+    const email = this.optionalTrim(input.email)?.toLowerCase();
+    const currentPassword = input.currentPassword ?? '';
+    const newPassword = input.newPassword ?? '';
+
+    if (firstName !== undefined && firstName.length === 0) {
+      throw new BadRequestException('Ime je obavezno');
+    }
+
+    if (lastName !== undefined && lastName.length === 0) {
+      throw new BadRequestException('Prezime je obavezno');
+    }
+
+    if (username !== undefined && username.length === 0) {
+      throw new BadRequestException('Korisnicko ime je obavezno');
+    }
+
+    if (email !== undefined) {
+      if (email.length === 0) {
+        throw new BadRequestException('Email je obavezan');
+      }
+
+      if (!/^\S+@\S+\.\S+$/.test(email)) {
+        throw new BadRequestException('Email nije ispravan');
+      }
+    }
+
+    if (newPassword) {
+      if (newPassword.length < 2) {
+        throw new BadRequestException('Nova lozinka mora imati najmanje 2 karaktera');
+      }
+
+      const passwordMatches = await bcrypt.compare(currentPassword, user.password);
+
+      if (!passwordMatches) {
+        throw new UnauthorizedException('Trenutna lozinka nije ispravna');
+      }
+
+      user.password = await bcrypt.hash(newPassword, 10);
+    }
+
+    if (email || username) {
+      const duplicateConditions: Record<string, string>[] = [];
+
+      if (email) duplicateConditions.push({ email });
+      if (username) duplicateConditions.push({ username });
+
+      const existingUser = await this.userModel.findOne({
+        _id: { $ne: user._id },
+        $or: duplicateConditions,
+      });
+
+      if (existingUser) {
+        throw new ConflictException('Email ili korisnicko ime je vec u upotrebi');
+      }
+    }
+
+    if (firstName !== undefined) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
+    if (username !== undefined) user.username = username;
+    if (email !== undefined) user.email = email;
+
+    await user.save();
+    return this.toPublicUser(user);
+  }
+
   async setRecommendationStatus(targetUserId: string, actorUserId: string, isRecommended: boolean) {
     if (targetUserId === actorUserId) {
       throw new ForbiddenException('Admin ne moze preporuciti sopstveni nalog');
@@ -216,5 +302,9 @@ export class UsersService implements OnApplicationBootstrap {
     if (!existingUser) {
       await this.create(input);
     }
+  }
+
+  private optionalTrim(value?: string) {
+    return typeof value === 'string' ? value.trim() : undefined;
   }
 }

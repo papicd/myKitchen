@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){};try{require('fs').rmSync('next-runtime',{recursive:true,force:true})}catch(e){}\"",
-    "dev": "next dev",
-    "dev:clean": "npm run clean && next dev",
-    "dev:turbo": "next dev --turbopack",
-    "build": "npm run clean && next build",
-    "build:turbo": "next build --turbopack",
-    "start": "next start",
+    "clean": "node scripts/next-command.mjs clean",
+    "dev": "node scripts/next-command.mjs dev",
+    "dev:clean": "npm run clean && node scripts/next-command.mjs dev",
+    "dev:turbo": "node scripts/next-command.mjs dev --turbopack",
+    "build": "node scripts/next-command.mjs build",
+    "build:turbo": "node scripts/next-command.mjs build --turbopack",
+    "start": "node scripts/next-command.mjs start",
     "lint": "eslint"
   },
   "dependencies": {

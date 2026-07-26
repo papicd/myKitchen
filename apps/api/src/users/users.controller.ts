@@ -8,7 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UsersService } from './users.service';
+import { UpdateOwnProfileInput, UsersService } from './users.service';
 
 @Controller('users')
 export class UsersController {
@@ -26,6 +26,16 @@ export class UsersController {
   @Get(':id')
   findOnePublic(@Param('id') id: string) {
     return this.usersService.findPublicById(id);
+  }
+
+  @Patch('me')
+  async updateMe(
+    @Body() body: UpdateOwnProfileInput,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const { userId } = this.getUser(authorization);
+    const user = await this.usersService.updateOwnProfile(userId, body);
+    return this.createAuthResponse(user);
   }
 
   @Patch(':id/recommendation')
@@ -69,6 +79,49 @@ export class UsersController {
           : 'Neispravan token',
       );
     }
+  }
+
+  private getUser(authorization?: string) {
+    const token = authorization?.startsWith('Bearer ')
+      ? authorization.slice('Bearer '.length)
+      : undefined;
+
+    if (!token) {
+      throw new UnauthorizedException('Morate biti prijavljeni');
+    }
+
+    try {
+      const payload = this.jwtService.verify(token);
+      return { userId: String(payload.sub), isAdmin: Boolean(payload.isAdmin) };
+    } catch (error) {
+      throw new UnauthorizedException(
+        error instanceof Error && error.name === 'TokenExpiredError'
+          ? 'Token je istekao'
+          : 'Neispravan token',
+      );
+    }
+  }
+
+  private createAuthResponse(user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    username: string;
+    email: string;
+    isAdmin: boolean;
+    isRecommended: boolean;
+  }) {
+    const token = this.jwtService.sign({
+      sub: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      username: user.username,
+      email: user.email,
+      isAdmin: user.isAdmin,
+      isRecommended: user.isRecommended,
+    });
+
+    return { token, user };
   }
 }
 
