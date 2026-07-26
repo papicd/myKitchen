@@ -419,6 +419,87 @@
   }
 }
 
+.recipesFilters {
+  margin-top: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--panel), var(--panel-soft));
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.recipesFiltersGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.filterField {
+  display: grid;
+  gap: 6px;
+
+  span {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--muted);
+  }
+
+  input,
+  select {
+    width: 100%;
+    min-height: 40px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--input);
+    color: var(--foreground);
+    font: inherit;
+  }
+}
+
+.checkboxField {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding-top: 22px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--foreground);
+
+  input {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.recipesFiltersFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filterResultsText {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.lazySentinel {
+  height: 1px;
+  margin-top: 12px;
+}
+
+.loadMoreWrap {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+}
+
 .profileOverview {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
@@ -1020,6 +1101,10 @@
       font-size: 32px;
     }
   }
+
+  .recipesFiltersGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 540px) {
@@ -1050,6 +1135,14 @@
   .featureGrid,
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .recipesFiltersGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .checkboxField {
+    padding-top: 0;
   }
 
   .hero {

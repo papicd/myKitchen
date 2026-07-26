@@ -1,4 +1,11 @@
-import { AdminUser, AuthResponse, RecipeDetails, RecipeListItem } from "./types";
+import {
+  AdminUser,
+  AuthResponse,
+  RecipeBrowseFilters,
+  RecipeBrowseResponse,
+  RecipeDetails,
+  RecipeListItem,
+} from "./types";
 
 export class AuthError extends Error {
   constructor(message = "Morate se ponovo prijaviti") {
@@ -58,6 +65,45 @@ export function signup(body: {
 
 export function getRecipes() {
   return request<RecipeListItem[]>("/recipes");
+}
+
+export function getRecipesPage(filters: RecipeBrowseFilters = {}) {
+  const params = new URLSearchParams();
+
+  if (filters.query?.trim()) {
+    params.set("query", filters.query.trim());
+  }
+
+  if (filters.groceries?.trim()) {
+    params.set("groceries", filters.groceries.trim());
+  }
+
+  if (typeof filters.minRating === "number") {
+    params.set("minRating", String(filters.minRating));
+  }
+
+  if (typeof filters.maxPreparationMinutes === "number") {
+    params.set("maxPreparationMinutes", String(filters.maxPreparationMinutes));
+  }
+
+  if (typeof filters.recommendedOnly === "boolean") {
+    params.set("recommendedOnly", String(filters.recommendedOnly));
+  }
+
+  if (typeof filters.page === "number") {
+    params.set("page", String(filters.page));
+  }
+
+  if (typeof filters.limit === "number") {
+    params.set("limit", String(filters.limit));
+  }
+
+  if (filters.sort) {
+    params.set("sort", filters.sort);
+  }
+
+  const query = params.toString();
+  return request<RecipeBrowseResponse>(`/recipes/browse${query ? `?${query}` : ""}`);
 }
 
 export function getRecipe(id: string, token: string) {

@@ -448,8 +448,14 @@
 
 .commentAuthor {
   margin: 0;
+  display: inline-flex;
   color: #15201e;
   font-weight: 900;
+  text-decoration: none;
+}
+
+.commentAuthor:hover {
+  color: var(--primary);
 }
 
 .commentDate {

@@ -13,7 +13,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { CreateCommentInput, CreateRecipeInput, RecipesService } from './recipes.service';
+import {
+  BrowseRecipesInput,
+  CreateCommentInput,
+  CreateRecipeInput,
+  RecipesService,
+} from './recipes.service';
 
 @Controller('recipes')
 export class RecipesController {
@@ -25,6 +30,31 @@ export class RecipesController {
   @Get()
   findAll() {
     return this.recipesService.findAll();
+  }
+
+  @Get('browse')
+  browse(
+    @Query('query') query?: string,
+    @Query('groceries') groceries?: string,
+    @Query('minRating') minRating?: string,
+    @Query('maxPreparationMinutes') maxPreparationMinutes?: string,
+    @Query('recommendedOnly') recommendedOnly?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('sort') sort?: BrowseRecipesInput['sort'],
+  ) {
+    return this.recipesService.browse({
+      query,
+      groceries,
+      minRating: minRating ? Number.parseFloat(minRating) : undefined,
+      maxPreparationMinutes: maxPreparationMinutes
+        ? Number.parseInt(maxPreparationMinutes, 10)
+        : undefined,
+      recommendedOnly: recommendedOnly === 'true',
+      page: page ? Number.parseInt(page, 10) : undefined,
+      limit: limit ? Number.parseInt(limit, 10) : undefined,
+      sort,
+    });
   }
 
   @Get('search')

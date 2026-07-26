@@ -26,6 +26,17 @@ export type CreateCommentInput = {
   text?: string;
 };
 
+export type BrowseRecipesInput = {
+  query?: string;
+  groceries?: string;
+  minRating?: number;
+  maxPreparationMinutes?: number;
+  recommendedOnly?: boolean;
+  page?: number;
+  limit?: number;
+  sort?: 'newest' | 'rating' | 'quickest';
+};
+
 @Injectable()
 export class RecipesService implements OnApplicationBootstrap {
   constructor(
@@ -42,6 +53,134 @@ export class RecipesService implements OnApplicationBootstrap {
   async findAll() {
     const recipes = await this.recipeModel.find().sort({ createdAt: -1 });
     return this.attachAuthors(recipes.map((recipe) => this.toListItem(recipe)));
+  }
+
+  async browse(input: BrowseRecipesInput = {}) {
+    const normalizedQuery = (input.query ?? '').trim();
+    const groceryTerms = this.parseTerms(input.groceries ?? '');
+    const page = this.normalizePage(input.page);
+    const limit = this.normalizeLimit(input.limit);
+    const minRating = this.normalizeMinRating(input.minRating);
+    const maxPreparationMinutes = this.normalizeMaxPreparationMinutes(input.maxPreparationMinutes);
+    const sort = input.sort ?? 'newest';
+
+    const filter: {
+      postedByRecommendedUser?: boolean;
+      $and?: Array<Record<string, unknown>>;
+      $expr?: Record<string, unknown>;
+    } = {};
+
+    const andClauses: Array<Record<string, unknown>> = [];
+
+    if (normalizedQuery) {
+      andClauses.push({ title: new RegExp(this.escapeRegExp(normalizedQuery), 'i') });
+    }
+
+    if (groceryTerms.length > 0) {
+      andClauses.push(
+        ...groceryTerms.map((term) => {
+          const pattern = new RegExp(this.escapeRegExp(term), 'i');
+          return {
+            $or: [{ ingredients: pattern }, { title: pattern }, { description: pattern }],
+          };
+        }),
+      );
+    }
+
+    if (andClauses.length > 0) {
+      filter.$and = andClauses;
+    }
+
+    if (input.recommendedOnly === true) {
+      filter.postedByRecommendedUser = true;
+    }
+
+    if (typeof minRating === 'number') {
+      filter.$expr = {
+        $gte: [{ $ifNull: [{ $avg: '$ratings.value' }, 0] }, minRating],
+      };
+    }
+
+    const recipes = await this.recipeModel.find(filter).sort({ createdAt: -1 });
+
+    const filteredByPreparation = recipes.filter((recipe) => {
+      if (typeof maxPreparationMinutes !== 'number') {
+        return true;
+      }
+
+      const minutes = this.parsePreparationTimeToMinutes(recipe.preparationTime);
+      if (minutes === null) {
+        return false;
+      }
+
+      return minutes <= maxPreparationMinutes;
+    });
+
+    const prepared = filteredByPreparation.map((recipe) => {
+      const listItem = this.toListItem(recipe);
+      const preparationMinutes = this.parsePreparationTimeToMinutes(recipe.preparationTime);
+      const ingredientValues = recipe.ingredients.map((ingredient) => ingredient.toLowerCase());
+      const createdAtValue = (recipe as unknown as { createdAt?: Date }).createdAt;
+      const matchedGroceries =
+        groceryTerms.length === 0
+          ? undefined
+          : groceryTerms.reduce((total, term) => {
+              const normalizedTerm = term.toLowerCase();
+              const matched = ingredientValues.some((ingredient) => ingredient.includes(normalizedTerm));
+              return total + (matched ? 1 : 0);
+            }, 0);
+
+      return {
+        ...listItem,
+        matchedGroceries,
+        createdAtMs: createdAtValue instanceof Date ? createdAtValue.getTime() : 0,
+        preparationMinutes,
+      };
+    });
+
+    prepared.sort((a, b) => {
+      if (sort === 'rating') {
+        if (b.averageRating !== a.averageRating) {
+          return b.averageRating - a.averageRating;
+        }
+        return b.ratingsCount - a.ratingsCount;
+      }
+
+      if (sort === 'quickest') {
+        const aMinutes = a.preparationMinutes ?? Number.MAX_SAFE_INTEGER;
+        const bMinutes = b.preparationMinutes ?? Number.MAX_SAFE_INTEGER;
+
+        if (aMinutes !== bMinutes) {
+          return aMinutes - bMinutes;
+        }
+      }
+
+      if (groceryTerms.length > 0) {
+        const aScore = a.matchedGroceries ?? 0;
+        const bScore = b.matchedGroceries ?? 0;
+        if (bScore !== aScore) {
+          return bScore - aScore;
+        }
+      }
+
+      return b.createdAtMs - a.createdAtMs;
+    });
+
+    const total = prepared.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const safePage = Math.min(page, totalPages);
+    const offset = (safePage - 1) * limit;
+    const pageItems = prepared.slice(offset, offset + limit).map(({ createdAtMs, preparationMinutes, ...item }) => item);
+    const items = await this.attachAuthors(pageItems);
+
+    return {
+      items,
+      total,
+      page: safePage,
+      limit,
+      totalPages,
+      hasMore: safePage < totalPages,
+    };
   }
 
   async findOne(id: string, currentUserId?: string) {
@@ -760,5 +899,71 @@ export class RecipesService implements OnApplicationBootstrap {
 
   private escapeRegExp(value: string) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private parseTerms(value: string) {
+    return value
+      .split(/[\n,]+/)
+      .flatMap((group) => group.split(/\s+/))
+      .map((term) => term.trim())
+      .filter(Boolean);
+  }
+
+  private normalizePage(page?: number) {
+    if (!Number.isFinite(page)) {
+      return 1;
+    }
+
+    return Math.max(1, Math.floor(page ?? 1));
+  }
+
+  private normalizeLimit(limit?: number) {
+    if (!Number.isFinite(limit)) {
+      return 12;
+    }
+
+    return Math.min(24, Math.max(1, Math.floor(limit ?? 12)));
+  }
+
+  private normalizeMinRating(value?: number) {
+    if (!Number.isFinite(value)) {
+      return undefined;
+    }
+
+    const rounded = Number((value ?? 0).toFixed(1));
+    if (rounded <= 0) {
+      return undefined;
+    }
+
+    return Math.min(5, rounded);
+  }
+
+  private normalizeMaxPreparationMinutes(value?: number) {
+    if (!Number.isFinite(value)) {
+      return undefined;
+    }
+
+    const normalized = Math.floor(value ?? 0);
+    return normalized > 0 ? normalized : undefined;
+  }
+
+  private parsePreparationTimeToMinutes(value: string) {
+    const normalized = value.toLowerCase();
+    const hourMatch = normalized.match(/(\d+)\s*(h|hr|hour|hours|sat|sata)/i);
+    const minuteMatch = normalized.match(/(\d+)\s*(m|min|minute|minutes|minut|minuta)/i);
+
+    const hours = hourMatch ? Number.parseInt(hourMatch[1], 10) : 0;
+    const minutes = minuteMatch ? Number.parseInt(minuteMatch[1], 10) : 0;
+
+    if (!hours && !minutes) {
+      const plainNumber = normalized.match(/\d+/);
+      if (!plainNumber) {
+        return null;
+      }
+
+      return Number.parseInt(plainNumber[0], 10);
+    }
+
+    return hours * 60 + minutes;
   }
 }

@@ -10,4 +10,5 @@ web/.next-dev/
 web/.next-build/
 web/.next-runtime/
 web/.tmp-check/
+web/.idea
 

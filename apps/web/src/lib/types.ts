@@ -69,3 +69,26 @@ export type RecipeDetails = RecipeListItem & {
   media?: Media[];
   links?: Link[];
 };
+
+export type RecipeSort = 'newest' | 'rating' | 'quickest';
+
+export type RecipeBrowseFilters = {
+  query?: string;
+  groceries?: string;
+  minRating?: number;
+  maxPreparationMinutes?: number;
+  recommendedOnly?: boolean;
+  page?: number;
+  limit?: number;
+  sort?: RecipeSort;
+};
+
+export type RecipeBrowseResponse = {
+  items: RecipeListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasMore: boolean;
+};
+

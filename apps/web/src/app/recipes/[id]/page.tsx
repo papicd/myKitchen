@@ -428,7 +428,9 @@ export default function RecipeDetailsPage() {
                         >
                           <div className={styles.commentMeta}>
                             <div>
-                              <p className={styles.commentAuthor}>{authorName}</p>
+                              <Link href={`/profile/${comment.author.id}`} className={styles.commentAuthor}>
+                                {authorName}
+                              </Link>
                               <p className={styles.commentDate}>
                                 {formatCommentDate(comment.createdAt, language)}
                               </p>
