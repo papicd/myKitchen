@@ -116,11 +116,15 @@ export function getRecipe(id: string, token: string) {
   return request<RecipeDetails>(`/recipes/${id}`, { token });
 }
 
-export function searchRecipes(query: string, token: string) {
-  return request<RecipeListItem[]>(
-    `/recipes/search?q=${encodeURIComponent(query)}`,
-    { token },
-  );
+export function searchRecipes(query: string, token: string, typeIds: string[] = []) {
+  const params = new URLSearchParams();
+  params.set("q", query);
+
+  if (typeIds.length > 0) {
+    params.set("typeIds", typeIds.join(","));
+  }
+
+  return request<RecipeListItem[]>(`/recipes/search?${params.toString()}`, { token });
 }
 
 export function getMyRecipes(token: string) {

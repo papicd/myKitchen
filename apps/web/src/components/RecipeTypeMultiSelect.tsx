@@ -45,6 +45,8 @@ export function RecipeTypeMultiSelect({
   emptyLabel,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
+  const [listMaxHeight, setListMaxHeight] = useState(260);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -63,6 +65,40 @@ export function RecipeTypeMultiSelect({
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function updatePanelPlacement() {
+      const rect = rootRef.current?.getBoundingClientRect();
+      if (!rect) {
+        return;
+      }
+
+      const viewportPadding = 12;
+      const panelGap = 8;
+      const panelChrome = 64;
+      const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+      const spaceAbove = rect.top - viewportPadding;
+      const shouldOpenUpward = spaceBelow < 280 && spaceAbove >= spaceBelow;
+      const availableSpace = shouldOpenUpward ? spaceAbove : spaceBelow;
+      const computedListMaxHeight = Math.max(48, Math.min(260, availableSpace - panelGap - panelChrome));
+
+      setOpenUpward(shouldOpenUpward);
+      setListMaxHeight(computedListMaxHeight);
+    }
+
+    updatePanelPlacement();
+    window.addEventListener("resize", updatePanelPlacement);
+    window.addEventListener("scroll", updatePanelPlacement, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePanelPlacement);
+      window.removeEventListener("scroll", updatePanelPlacement, true);
+    };
+  }, [open]);
 
   function toggleType(id: string) {
     if (selectedSet.has(id)) {
@@ -109,7 +145,7 @@ export function RecipeTypeMultiSelect({
       </button>
 
       {open ? (
-        <div className={styles.panel}>
+        <div className={`${styles.panel} ${openUpward ? styles.panelUp : ""}`}>
           <div className={styles.toolbar}>
             <span className={styles.count}>{selectedCountLabelAction(selectedTypes.length)}</span>
             <div className={styles.actions}>
@@ -129,7 +165,7 @@ export function RecipeTypeMultiSelect({
           {options.length === 0 ? (
             <p className={styles.empty}>{emptyLabel}</p>
           ) : (
-            <ul className={styles.list} role="listbox" aria-multiselectable="true">
+            <ul className={styles.list} style={{ maxHeight: `${listMaxHeight}px` }} role="listbox" aria-multiselectable="true">
               {options.map((type) => {
                 const isSelected = selectedSet.has(type.id);
                 return (

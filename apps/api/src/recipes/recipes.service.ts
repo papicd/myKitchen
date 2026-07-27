@@ -490,22 +490,37 @@ export class RecipesService implements OnApplicationBootstrap {
     return this.usersService.toggleSavedRecipe(userId, recipeId);
   }
 
-  async searchByGroceries(query: string) {    const terms = query
+  async searchByGroceries(query: string, typeIds: string[] = []) {
+    const terms = query
       .split(/[,\n ]+/)
       .map((term) => term.trim())
       .filter(Boolean);
+    const typeObjectIds = this.normalizeTypeIds(typeIds);
 
-    if (terms.length === 0) {
+    if (terms.length === 0 && typeObjectIds.length === 0) {
       return [];
     }
 
-    const recipes = await this.recipeModel
-      .find({
+    const andClauses: Array<Record<string, unknown>> = [];
+
+    if (terms.length > 0) {
+      andClauses.push({
         $or: terms.flatMap((term) => {
           const pattern = new RegExp(this.escapeRegExp(term), 'i');
           return [{ ingredients: pattern }, { title: pattern }, { description: pattern }];
         }),
-      })
+      });
+    }
+
+    if (typeObjectIds.length > 0) {
+      andClauses.push({ typeIds: { $in: typeObjectIds } });
+    }
+
+    const searchFilter = andClauses.length > 1 ? { $and: andClauses } : andClauses[0] ?? {};
+
+    const recipes = await this.recipeModel
+      .find(searchFilter)
+      .sort({ createdAt: -1 })
       .populate({ path: 'typeIds', select: 'name color' });
 
     const scoredRecipes = recipes

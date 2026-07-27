@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { RecipeTypeBadges } from "../../components/RecipeTypeBadges";
-import { getSavedRecipes, searchRecipes, toggleSaveRecipe } from "../../lib/api";
+import { getRecipeTypes, getSavedRecipes, searchRecipes, toggleSaveRecipe } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useTranslation } from "../../lib/useTranslation";
-import { RecipeListItem } from "../../lib/types";
+import { RecipeListItem, RecipeType } from "../../lib/types";
 import styles from "../page.module.scss";
 
 export default function FindPage() {
@@ -16,9 +16,19 @@ export default function FindPage() {
   const [error, setError] = useState("");
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [recipeTypes, setRecipeTypes] = useState<RecipeType[]>([]);
+  const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
+  const [groceriesInput, setGroceriesInput] = useState("");
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  useEffect(() => {
+    getRecipeTypes()
+      .then(setRecipeTypes)
+      .catch(() => {
+        setRecipeTypes([]);
+      });
+  }, []);
+
+  async function runSearch(query: string, typeIds: string[] = selectedTypeIds) {
     setError("");
 
     if (!token) {
@@ -26,11 +36,8 @@ export default function FindPage() {
       return;
     }
 
-    const formData = new FormData(event.currentTarget);
-    const query = String(formData.get("groceries"));
-
     try {
-      const foundRecipes = await searchRecipes(query, token);
+      const foundRecipes = await searchRecipes(query, token, typeIds);
       setRecipes(foundRecipes);
       const savedRecipes = await getSavedRecipes(token);
       setSavedIds(savedRecipes.map((recipe) => recipe.id));
@@ -41,6 +48,11 @@ export default function FindPage() {
           : t("searchFailed"),
       );
     }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await runSearch(groceriesInput);
   }
 
   async function handleSave(recipeId: string) {
@@ -70,6 +82,21 @@ export default function FindPage() {
     }
   }
 
+  function toggleTypeId(typeId: string) {
+    const nextIds = selectedTypeIds.includes(typeId)
+      ? selectedTypeIds.filter((id) => id !== typeId)
+      : [...selectedTypeIds, typeId];
+
+    setSelectedTypeIds(nextIds);
+    void runSearch(groceriesInput, nextIds);
+  }
+
+  function selectAllTypes() {
+    const nextIds = recipeTypes.map((type) => type.id);
+    setSelectedTypeIds(nextIds);
+    void runSearch(groceriesInput, nextIds);
+  }
+
   if (!isLoggedIn) {
     return (
       <main className={styles.page}>
@@ -96,7 +123,49 @@ export default function FindPage() {
       <form className={styles.form} onSubmit={handleSubmit}>
         <div className={styles.field}>
           <label htmlFor="groceries">{t("ingredientsFieldLabel")}</label>
-          <input id="groceries" name="groceries" placeholder={t("ingredientsFieldPlaceholder")} />
+          <input
+            id="groceries"
+            name="groceries"
+            value={groceriesInput}
+            placeholder={t("ingredientsFieldPlaceholder")}
+            onChange={(event) => setGroceriesInput(event.target.value)}
+          />
+        </div>
+        <div className={styles.field}>
+          <label htmlFor="findTypeIds">{t("recipeTypesLabel")}</label>
+          <div id="findTypeIds" className={styles.typeQuickFilters}>
+            <button
+              type="button"
+              className={`${styles.typeQuickFilterBtn} ${selectedTypeIds.length === 0 ? styles.typeQuickFilterBtnActive : ""}`}
+              onClick={() => {
+                setSelectedTypeIds([]);
+                void runSearch(groceriesInput, []);
+              }}
+            >
+              {t("all")}
+            </button>
+            <button
+              type="button"
+              className={`${styles.typeQuickFilterBtn} ${selectedTypeIds.length > 0 && selectedTypeIds.length === recipeTypes.length ? styles.typeQuickFilterBtnActive : ""}`}
+              onClick={selectAllTypes}
+              disabled={recipeTypes.length === 0}
+            >
+              {t("selectAllTypes")}
+            </button>
+            {recipeTypes.map((type) => {
+              const active = selectedTypeIds.includes(type.id);
+              return (
+                <button
+                  key={type.id}
+                  type="button"
+                  className={`${styles.typeQuickFilterBtn} ${active ? styles.typeQuickFilterBtnActive : ""}`}
+                  onClick={() => toggleTypeId(type.id)}
+                >
+                  {type.name}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <button className={styles.button}>{t("searchButton")}</button>
       </form>

@@ -67,9 +67,21 @@ export class RecipesController {
   }
 
   @Get('search')
-  search(@Query('q') query = '', @Headers('authorization') authorization?: string) {
+  search(
+    @Query('q') query = '',
+    @Query('typeIds') typeIds?: string,
+    @Headers('authorization') authorization?: string,
+  ) {
     this.getUser(authorization);
-    return this.recipesService.searchByGroceries(query);
+    return this.recipesService.searchByGroceries(
+      query,
+      typeIds
+        ? typeIds
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean)
+        : undefined,
+    );
   }
 
   @Get('types')

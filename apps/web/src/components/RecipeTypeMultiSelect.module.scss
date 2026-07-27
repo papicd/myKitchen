@@ -65,13 +65,17 @@
 
 .panel {
   position: absolute;
-  z-index: 25;
+  z-index: 80;
   inset: calc(100% + 8px) 0 auto 0;
   border: 1px solid var(--border-soft);
   border-radius: 14px;
   background: var(--white);
   box-shadow: 0 20px 44px var(--ink-alpha-14);
   overflow: hidden;
+}
+
+.panelUp {
+  inset: auto 0 calc(100% + 8px) 0;
 }
 
 .toolbar {
