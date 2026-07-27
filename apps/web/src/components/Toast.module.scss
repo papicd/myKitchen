@@ -5,12 +5,12 @@
   z-index: 120;
   min-width: min(360px, calc(100vw - 32px));
   max-width: 420px;
-  border: 1px solid #e1d5b4;
+  border: 1px solid var(--toast-border);
   border-radius: 14px;
-  background: #fff9ea;
-  box-shadow: 0 14px 30px rgba(31, 37, 40, 0.14);
+  background: var(--toast-bg);
+  box-shadow: var(--shadow-elev-lg);
   padding: 14px 16px;
-  color: #5b4720;
+  color: var(--toast-text);
   animation: slideIn 0.18s ease;
 }
 
@@ -45,4 +45,3 @@
     min-width: auto;
   }
 }
-

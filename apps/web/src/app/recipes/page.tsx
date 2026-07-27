@@ -34,14 +34,27 @@ export default function RecipesPage() {
   const [total, setTotal] = useState(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const requestIdRef = useRef(0);
+  const browseFiltersRef = useRef<RecipeBrowseFilters>({ limit: PAGE_SIZE });
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setDebouncedSearch(searchInput.trim());
-    }, 2000);
+    }, 500);
 
     return () => window.clearTimeout(timeout);
   }, [searchInput]);
+
+  const hasActiveFilters = useMemo(
+    () =>
+      Boolean(
+        debouncedSearch ||
+          groceriesInput.trim() ||
+          minRatingInput ||
+          maxPreparationInput ||
+          recommendedOnly,
+      ),
+    [debouncedSearch, groceriesInput, maxPreparationInput, minRatingInput, recommendedOnly],
+  );
 
   const browseFilters = useMemo<RecipeBrowseFilters>(
     () => ({
@@ -52,11 +65,18 @@ export default function RecipesPage() {
         ? Number.parseInt(maxPreparationInput, 10)
         : undefined,
       recommendedOnly,
-      sort,
+      // When there are no filters, skip custom sort and let backend return newest quickly.
+      sort: hasActiveFilters ? sort : undefined,
       limit: PAGE_SIZE,
     }),
-    [debouncedSearch, groceriesInput, maxPreparationInput, minRatingInput, recommendedOnly, sort],
+    [debouncedSearch, groceriesInput, hasActiveFilters, maxPreparationInput, minRatingInput, recommendedOnly, sort],
   );
+
+  const browseFiltersKey = useMemo(() => JSON.stringify(browseFilters), [browseFilters]);
+
+  useEffect(() => {
+    browseFiltersRef.current = browseFilters;
+  }, [browseFilters]);
 
   const loadRecipes = useCallback(async (targetPage: number, replaceItems: boolean) => {
     const requestId = requestIdRef.current + 1;
@@ -71,7 +91,7 @@ export default function RecipesPage() {
     setError("");
 
     try {
-      const response = await getRecipesPage({ ...browseFilters, page: targetPage });
+      const response = await getRecipesPage({ ...browseFiltersRef.current, page: targetPage });
 
       if (requestId !== requestIdRef.current) {
         return;
@@ -96,11 +116,11 @@ export default function RecipesPage() {
         setLoadingMore(false);
       }
     }
-  }, [browseFilters]);
+  }, []);
 
   useEffect(() => {
     void loadRecipes(1, true);
-  }, [loadRecipes]);
+  }, [browseFiltersKey, loadRecipes]);
 
   useEffect(() => {
     if (!token || !isLoggedIn) {
@@ -294,9 +314,9 @@ export default function RecipesPage() {
             <div className={styles.cardFooter}>
               <Link href={`/profile/${recipe.author.id}`} className={styles.authorLink}>
                 <span className={styles.avatar}>
-                  {`${recipe.author.firstName}`.slice(0, 1).toUpperCase()}
+                  {`${recipe.author.username}`.slice(0, 1).toUpperCase()}
                 </span>
-                <span>{recipe.author.firstName} {recipe.author.lastName}</span>
+                <span>@{recipe.author.username}</span>
               </Link>
               {isLoggedIn ? (
                 <div className={styles.cardActions}>

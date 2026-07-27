@@ -1,3 +1,61 @@
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tabBtn {
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: var(--panel);
+  color: var(--foreground);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tabBtnActive {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--accent-soft);
+}
+
+.tabPanel {
+  margin-top: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.searchBar {
+  display: grid;
+  gap: 8px;
+}
+
+.searchLabel {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.searchActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+
+  input {
+    min-height: 42px;
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0 12px;
+    background: var(--input);
+    color: var(--foreground);
+    font: inherit;
+  }
+}
+
 .list {
   display: grid;
   gap: 14px;
@@ -33,14 +91,14 @@
   min-height: 28px;
   border-radius: 999px;
   padding: 0 10px;
-  background: #eef2ef;
-  color: #31403c;
+  background: var(--surface-subtle);
+  color: var(--chip-text);
   font-size: 12px;
   font-weight: 800;
 }
 
 .recommended {
-  background: #e8f4f1;
+  background: var(--accent-soft);
   color: var(--primary);
 }
 
@@ -55,6 +113,83 @@
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pageInfo {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.typeForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px auto;
+  gap: 10px;
+  align-items: end;
+
+  label {
+    display: grid;
+    gap: 6px;
+
+    span {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--muted);
+    }
+  }
+
+  input {
+    min-height: 42px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--input);
+    color: var(--foreground);
+    font: inherit;
+    padding: 0 12px;
+  }
+
+  input[type="color"] {
+    padding: 4px;
+  }
+}
+
+.typesList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.typeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--panel-soft);
+}
+
+.typeSwatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-alpha-14);
+  flex-shrink: 0;
+}
+
+.typeName {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--foreground);
 }
 
 .secondary {
@@ -74,7 +209,7 @@
   border-radius: 8px;
   padding: 0 14px;
   background: var(--primary);
-  color: #fff;
+  color: var(--white);
   font: inherit;
   font-weight: 800;
   cursor: pointer;
@@ -86,17 +221,38 @@
   cursor: not-allowed;
 }
 
+@media (max-width: 980px) {
+  .typeForm {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    button {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
 @media (max-width: 700px) {
   .userRow {
     grid-template-columns: 1fr;
   }
 
-  .actions {
+  .actions,
+  .pagination {
     justify-content: stretch;
   }
 
-  .actions button {
+  .actions button,
+  .pagination button,
+  .searchActions button,
+  .typeForm button {
     width: 100%;
   }
-}
 
+  .searchActions {
+    grid-template-columns: 1fr;
+  }
+
+  .typeForm {
+    grid-template-columns: 1fr;
+  }
+}

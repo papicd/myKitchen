@@ -425,7 +425,7 @@ export default function RecipeDetailsPage() {
                     <p className={styles.noComments}>{t("noComments")}</p>
                   ) : (
                     recipe.comments.map((comment) => {
-                      const authorName = `${comment.author.firstName} ${comment.author.lastName}`.trim() || comment.author.username;
+                      const authorName = `@${comment.author.username}`;
 
                       return (
                         <article

@@ -5,6 +5,7 @@ import {
   Headers,
   Param,
   Patch,
+  Query,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -18,9 +19,18 @@ export class UsersController {
   ) {}
 
   @Get()
-  findAll(@Headers('authorization') authorization?: string) {
+  findAll(
+    @Headers('authorization') authorization?: string,
+    @Query('query') query?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
     this.getAdminUser(authorization);
-    return this.usersService.findAllPublic();
+    return this.usersService.findAllPublic({
+      query,
+      page: page ? Number.parseInt(page, 10) : undefined,
+      limit: limit ? Number.parseInt(limit, 10) : undefined,
+    });
   }
 
   @Get(':id')
@@ -46,6 +56,16 @@ export class UsersController {
   ) {
     const { userId } = this.getAdminUser(authorization);
     return this.usersService.setRecommendationStatus(id, userId, Boolean(body.isRecommended));
+  }
+
+  @Patch(':id/admin')
+  updateAdmin(
+    @Param('id') id: string,
+    @Body() body: { isAdmin?: boolean },
+    @Headers('authorization') authorization?: string,
+  ) {
+    const { userId } = this.getAdminUser(authorization);
+    return this.usersService.setAdminStatus(id, userId, Boolean(body.isAdmin));
   }
 
   private getAdminUser(authorization?: string) {
@@ -124,4 +144,3 @@ export class UsersController {
     return { token, user };
   }
 }
-

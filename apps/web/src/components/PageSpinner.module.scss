@@ -14,7 +14,7 @@
 .spinner {
   width: 22px;
   height: 22px;
-  border: 3px solid rgba(29, 107, 95, 0.22);
+  border: 3px solid var(--primary-alpha-22);
   border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -29,4 +29,3 @@
     transform: rotate(360deg);
   }
 }
-

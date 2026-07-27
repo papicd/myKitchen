@@ -182,11 +182,10 @@ export default function ProfilePage() {
         <section className={styles.profileOverview}>
           <article className={styles.profileHeroCard}>
             <span className={styles.profileAvatar}>
-              {`${user.firstName}`.slice(0, 1).toUpperCase()}
+              {`${user.username}`.slice(0, 1).toUpperCase()}
             </span>
             <div>
-              <h2>{user.firstName} {user.lastName}</h2>
-              <p>@{user.username}</p>
+              <h2>@{user.username}</h2>
               <p>{user.email}</p>
             </div>
           </article>
@@ -322,9 +321,9 @@ export default function ProfilePage() {
                     <div className={styles.cardFooter}>
                       <span className={styles.authorLink}>
                         <span className={styles.avatar}>
-                          {`${recipe.author.firstName}`.slice(0, 1).toUpperCase()}
+                          {`${recipe.author.username}`.slice(0, 1).toUpperCase()}
                         </span>
-                        <span>{recipe.author.firstName} {recipe.author.lastName}</span>
+                        <span>@{recipe.author.username}</span>
                       </span>
                     </div>
                   </Link>

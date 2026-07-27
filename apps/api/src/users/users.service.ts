@@ -32,6 +32,12 @@ export type UpdateOwnProfileInput = {
   newPassword?: string;
 };
 
+export type FindUsersInput = {
+  query?: string;
+  page?: number;
+  limit?: number;
+};
+
 @Injectable()
 export class UsersService implements OnApplicationBootstrap {
   constructor(
@@ -104,22 +110,64 @@ export class UsersService implements OnApplicationBootstrap {
     return users.map((user) => this.toPublicUser(user));
   }
 
-  async findAllPublic() {
-    const users = await this.userModel.find().sort({ createdAt: 1 });
-    const recipeCounts = await this.recipeModel.aggregate<{
-      _id: Types.ObjectId;
-      count: number;
-    }>([
-      { $group: { _id: '$createdBy', count: { $sum: 1 } } },
-    ]);
+  async findAllPublic(input: FindUsersInput = {}) {
+    const query = (input.query ?? '').trim();
+    const page = this.normalizePage(input.page);
+    const limit = this.normalizeLimit(input.limit);
+
+    const filter = query
+      ? {
+          $or: [
+            { firstName: { $regex: this.escapeRegExp(query), $options: 'i' } },
+            { lastName: { $regex: this.escapeRegExp(query), $options: 'i' } },
+            { username: { $regex: this.escapeRegExp(query), $options: 'i' } },
+          ],
+        }
+      : {};
+
+    const total = await this.userModel.countDocuments(filter);
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const safePage = Math.min(page, totalPages);
+    const skip = (safePage - 1) * limit;
+
+    const users = await this.userModel
+      .find(filter)
+      .sort({ createdAt: 1 })
+      .skip(skip)
+      .limit(limit);
+
+    const userIds = users
+      .map((user) => (user as User & { _id?: unknown })._id)
+      .filter((id): id is Types.ObjectId => id instanceof Types.ObjectId);
+
+    const recipeCounts = userIds.length
+      ? await this.recipeModel.aggregate<{
+          _id: Types.ObjectId;
+          count: number;
+        }>([
+          { $match: { createdBy: { $in: userIds } } },
+          { $group: { _id: '$createdBy', count: { $sum: 1 } } },
+        ])
+      : [];
+
     const recipeCountByUser = new Map(
       recipeCounts.map((entry) => [String(entry._id), entry.count]),
     );
 
-    return users.map((user) => ({
+    const items = users.map((user) => ({
       ...this.toPublicUser(user),
       recipeCount: recipeCountByUser.get(String((user as User & { _id?: unknown })._id)) ?? 0,
     }));
+
+    return {
+      items,
+      total,
+      page: safePage,
+      limit,
+      totalPages,
+      hasMore: safePage < totalPages,
+      query,
+    };
   }
 
   async getRecommendedUserIds() {
@@ -236,6 +284,27 @@ export class UsersService implements OnApplicationBootstrap {
     return this.toPublicUser(user);
   }
 
+  async setAdminStatus(targetUserId: string, actorUserId: string, isAdmin: boolean) {
+    if (targetUserId === actorUserId) {
+      throw new ForbiddenException('Admin ne moze menjati sopstveni admin status');
+    }
+
+    const updatedUser = await this.userModel.findByIdAndUpdate(
+      targetUserId,
+      { isAdmin },
+      { new: true },
+    );
+
+    if (!updatedUser) {
+      throw new NotFoundException('Korisnik nije pronadjen');
+    }
+
+    return {
+      ...this.toPublicUser(updatedUser),
+      recipeCount: await this.recipeModel.countDocuments({ createdBy: updatedUser._id }),
+    };
+  }
+
   async setRecommendationStatus(targetUserId: string, actorUserId: string, isRecommended: boolean) {
     if (targetUserId === actorUserId) {
       throw new ForbiddenException('Admin ne moze preporuciti sopstveni nalog');
@@ -306,5 +375,25 @@ export class UsersService implements OnApplicationBootstrap {
 
   private optionalTrim(value?: string) {
     return typeof value === 'string' ? value.trim() : undefined;
+  }
+
+  private normalizePage(page?: number) {
+    if (!Number.isFinite(page)) {
+      return 1;
+    }
+
+    return Math.max(1, Math.floor(page ?? 1));
+  }
+
+  private normalizeLimit(limit?: number) {
+    if (!Number.isFinite(limit)) {
+      return 10;
+    }
+
+    return Math.min(50, Math.max(1, Math.floor(limit ?? 10)));
+  }
+
+  private escapeRegExp(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }

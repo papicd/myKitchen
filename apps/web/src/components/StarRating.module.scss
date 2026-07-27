@@ -19,7 +19,7 @@
   border-radius: 8px;
   padding: 0;
   background: transparent;
-  color: #d0d6d3;
+  color: var(--rating-star-empty);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -34,11 +34,11 @@
 
 .starButton:hover:not(:disabled) {
   transform: translateY(-1px);
-  background: #f6f8f7;
+  background: var(--rating-star-hover-bg);
 }
 
 .filled {
-  color: #f3b940;
+  color: var(--rating-star-filled);
 }
 
 .summary,
@@ -47,4 +47,3 @@
   font-size: 14px;
   font-weight: 700;
 }
-

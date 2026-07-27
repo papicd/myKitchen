@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(31, 37, 40, 0.45);
+  background: var(--overlay-dark-45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -20,7 +20,7 @@
   max-width: 440px;
   border-radius: 12px;
   background: var(--panel);
-  box-shadow: 0 8px 32px rgba(31, 37, 40, 0.18);
+  box-shadow: var(--shadow-elev-md);
   animation: slideUp 0.18s ease;
   overflow: hidden;
 }
@@ -35,7 +35,7 @@
   align-items: center;
   gap: 16px;
   padding: 24px;
-  background: #eef2ef;
+  background: var(--surface-subtle);
 }
 
 .icon {
@@ -43,7 +43,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: #d4e8e0;
+  background: var(--accent-success-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -80,13 +80,12 @@
   border: 0;
   border-radius: 6px;
   background: var(--primary);
-  color: #ffffff;
+  color: var(--white);
   font-weight: 800;
   font: inherit;
   cursor: pointer;
 
   &:hover {
-    background: #18584e;
+    background: var(--primary-hover);
   }
 }
-

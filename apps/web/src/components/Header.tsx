@@ -10,10 +10,9 @@ export function Header() {
   const { user, isLoggedIn, logout } = useAuth();
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const firstInitial = String(user?.firstName ?? "").slice(0, 1);
-  const lastInitial = String(user?.lastName ?? "").slice(0, 1);
+  const usernameSeed = String(user?.username ?? "").replace(/[^a-z0-9]/gi, "");
   const profileInitials = user
-    ? `${firstInitial}${lastInitial}`.trim().toUpperCase() || "MK"
+    ? usernameSeed.slice(0, 2).toUpperCase() || "MK"
     : "MK";
 
   const close = () => setMenuOpen(false);
@@ -51,7 +50,7 @@ export function Header() {
             {isLoggedIn ? <Link href="/my-recipes" onClick={close}>{t("myRecipes")}</Link> : null}
             {isLoggedIn ? <Link href="/find" onClick={close}>{t("findByIngredients")}</Link> : null}
             {isLoggedIn ? <Link href="/add-recipe" onClick={close}>{t("addRecipe")}</Link> : null}
-            {user?.isAdmin ? <Link href="/admin/users" onClick={close}>{t("recommendations")}</Link> : null}
+            {user?.isAdmin ? <Link href="/admin/users" onClick={close}>{t("adminPanel")}</Link> : null}
             <Link href="/contact" onClick={close}>{t("contact")}</Link>
           </nav>
 

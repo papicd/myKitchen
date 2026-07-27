@@ -120,6 +120,64 @@ export class RecipesService implements OnApplicationBootstrap {
       };
     }
 
+    const hasQuery = Boolean(normalizedQuery);
+    const hasGroceries = groceryTerms.length > 0;
+    const hasMinRating = typeof minRating === 'number';
+    const hasMaxPreparation = typeof maxPreparationMinutes === 'number';
+    const hasRecommendedOnly = input.recommendedOnly === true;
+
+    // Fastest path: no filters and newest order.
+    if (!hasQuery && !hasGroceries && !hasMinRating && !hasMaxPreparation && !hasRecommendedOnly && sort === 'newest') {
+      const total = await this.recipeModel.countDocuments({});
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const safePage = Math.min(page, totalPages);
+      const offset = (safePage - 1) * limit;
+
+      const recipes = await this.recipeModel
+        .find({})
+        .sort({ createdAt: -1 })
+        .skip(offset)
+        .limit(limit)
+        .populate({ path: 'typeIds', select: 'name color' });
+
+      const items = await this.attachAuthors(recipes.map((recipe) => this.toListItem(recipe)));
+
+      return {
+        items,
+        total,
+        page: safePage,
+        limit,
+        totalPages,
+        hasMore: safePage < totalPages,
+      };
+    }
+
+    // Fast path: Mongo can handle newest-sorted paging when advanced in-memory scoring is not needed.
+    if (sort === 'newest' && !hasGroceries && !hasMaxPreparation) {
+      const total = await this.recipeModel.countDocuments(filter);
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const safePage = Math.min(page, totalPages);
+      const offset = (safePage - 1) * limit;
+
+      const recipes = await this.recipeModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(offset)
+        .limit(limit)
+        .populate({ path: 'typeIds', select: 'name color' });
+
+      const items = await this.attachAuthors(recipes.map((recipe) => this.toListItem(recipe)));
+
+      return {
+        items,
+        total,
+        page: safePage,
+        limit,
+        totalPages,
+        hasMore: safePage < totalPages,
+      };
+    }
+
     const recipes = await this.recipeModel
       .find(filter)
       .sort({ createdAt: -1 })

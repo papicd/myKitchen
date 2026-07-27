@@ -12,6 +12,16 @@ export type AdminUser = User & {
   recipeCount: number;
 };
 
+export type PaginatedAdminUsers = {
+  items: AdminUser[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasMore: boolean;
+  query: string;
+};
+
 export type AuthResponse = {
   token: string;
   user: User;
@@ -98,4 +108,3 @@ export type RecipeBrowseResponse = {
   totalPages: number;
   hasMore: boolean;
 };
-

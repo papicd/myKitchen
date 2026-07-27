@@ -1,0 +1,119 @@
+.details {
+  max-width: 840px;
+
+  h1 {
+    margin: 0 0 12px;
+    font-size: 48px;
+  }
+
+  p {
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  h2 {
+    margin-top: 32px;
+  }
+
+  li {
+    margin-bottom: 8px;
+    line-height: 1.6;
+  }
+}
+
+.detailsHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.detailsActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.editBtn {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: background 0.15s;
+
+  &:hover {
+    background: var(--surface-subtle);
+  }
+}
+
+.deleteBtnOutline {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--danger);
+  font-weight: 700;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--danger-soft);
+  }
+}
+
+.cardWrapper {
+  position: relative;
+
+  > a {
+    display: block;
+    height: 100%;
+  }
+
+  &:hover .deleteBtn {
+    opacity: 1;
+  }
+}
+
+.deleteBtn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 15px;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+
+  &:hover {
+    background: var(--danger-soft);
+    border-color: var(--danger);
+  }
+}
+
+@media (hover: none) {
+  .deleteBtn {
+    opacity: 1;
+  }
+}
+

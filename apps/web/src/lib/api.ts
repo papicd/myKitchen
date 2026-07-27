@@ -1,6 +1,7 @@
 import {
   AdminUser,
   AuthResponse,
+  PaginatedAdminUsers,
   RecipeBrowseFilters,
   RecipeBrowseResponse,
   RecipeDetails,
@@ -213,8 +214,26 @@ export function addRecipeComment(id: string, text: string, token: string) {
   });
 }
 
-export function getUsers(token: string) {
-  return request<AdminUser[]>("/users", { token });
+export function getUsers(
+  token: string,
+  filters: { query?: string; page?: number; limit?: number } = {},
+) {
+  const params = new URLSearchParams();
+
+  if (filters.query?.trim()) {
+    params.set("query", filters.query.trim());
+  }
+
+  if (typeof filters.page === "number") {
+    params.set("page", String(filters.page));
+  }
+
+  if (typeof filters.limit === "number") {
+    params.set("limit", String(filters.limit));
+  }
+
+  const query = params.toString();
+  return request<PaginatedAdminUsers>(`/users${query ? `?${query}` : ""}`, { token });
 }
 
 export function updateUserRecommendation(
@@ -225,6 +244,18 @@ export function updateUserRecommendation(
   return request<AdminUser>(`/users/${id}/recommendation`, {
     token,
     body: { isRecommended },
+    method: "PATCH",
+  });
+}
+
+export function updateUserAdmin(
+  id: string,
+  isAdmin: boolean,
+  token: string,
+) {
+  return request<AdminUser>(`/users/${id}/admin`, {
+    token,
+    body: { isAdmin },
     method: "PATCH",
   });
 }
@@ -243,4 +274,3 @@ export function createRecipeType(
     method: 'POST',
   });
 }
-

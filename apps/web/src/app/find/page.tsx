@@ -117,9 +117,9 @@ export default function FindPage() {
             <div className={styles.cardFooter}>
               <Link href={`/profile/${recipe.author.id}`} className={styles.authorLink}>
                 <span className={styles.avatar}>
-                  {`${recipe.author.firstName}`.slice(0, 1).toUpperCase()}
+                  {`${recipe.author.username}`.slice(0, 1).toUpperCase()}
                 </span>
-                <span>{recipe.author.firstName} {recipe.author.lastName}</span>
+                <span>@{recipe.author.username}</span>
               </Link>
               <div className={styles.cardActions}>
                 <button

@@ -76,10 +76,8 @@ export default function UserProfilePage() {
       {profile ? (
         <header className={styles.pageHeader}>
           <div>
-            <h1>
-              {profile.firstName} {profile.lastName}
-            </h1>
-            <p>@{profile.username} · {profile.recipeCount} {t("recipeCount")}</p>
+            <h1>@{profile.username}</h1>
+            <p>{profile.recipeCount} {t("recipeCount")}</p>
           </div>
         </header>
       ) : null}
@@ -120,4 +118,3 @@ export default function UserProfilePage() {
     </main>
   );
 }
-
