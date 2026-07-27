@@ -92,6 +92,7 @@ export type RecipeSort = 'newest' | 'rating' | 'quickest';
 export type RecipeBrowseFilters = {
   query?: string;
   groceries?: string;
+  typeIds?: string[];
   minRating?: number;
   maxPreparationMinutes?: number;
   recommendedOnly?: boolean;

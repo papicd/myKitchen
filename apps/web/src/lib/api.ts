@@ -80,6 +80,10 @@ export function getRecipesPage(filters: RecipeBrowseFilters = {}) {
     params.set("groceries", filters.groceries.trim());
   }
 
+  if (Array.isArray(filters.typeIds) && filters.typeIds.length > 0) {
+    params.set("typeIds", filters.typeIds.join(","));
+  }
+
   if (typeof filters.minRating === "number") {
     params.set("minRating", String(filters.minRating));
   }

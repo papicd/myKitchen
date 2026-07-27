@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageSpinner } from "@/components/PageSpinner";
 import { RecipeTypeBadges } from "@/components/RecipeTypeBadges";
+import { RecipeTypeMultiSelect } from "@/components/RecipeTypeMultiSelect";
 import { StarRating } from "@/components/StarRating";
-import { getRecipesPage, getSavedRecipes, toggleSaveRecipe } from "@/lib/api";
+import { getRecipeTypes, getRecipesPage, getSavedRecipes, toggleSaveRecipe } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTranslation } from "@/lib/useTranslation";
-import { RecipeBrowseFilters, RecipeListItem, RecipeSort } from "@/lib/types";
+import { RecipeBrowseFilters, RecipeListItem, RecipeSort, RecipeType } from "@/lib/types";
 import styles from "../page.module.scss";
 
 const PAGE_SIZE = 12;
@@ -28,10 +29,12 @@ export default function RecipesPage() {
   const [minRatingInput, setMinRatingInput] = useState("");
   const [maxPreparationInput, setMaxPreparationInput] = useState("");
   const [recommendedOnly, setRecommendedOnly] = useState(false);
+  const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
   const [sort, setSort] = useState<RecipeSort>("newest");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState(0);
+  const [recipeTypes, setRecipeTypes] = useState<RecipeType[]>([]);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const requestIdRef = useRef(0);
   const browseFiltersRef = useRef<RecipeBrowseFilters>({ limit: PAGE_SIZE });
@@ -49,17 +52,19 @@ export default function RecipesPage() {
       Boolean(
         debouncedSearch ||
           groceriesInput.trim() ||
+          selectedTypeIds.length > 0 ||
           minRatingInput ||
           maxPreparationInput ||
           recommendedOnly,
       ),
-    [debouncedSearch, groceriesInput, maxPreparationInput, minRatingInput, recommendedOnly],
+    [debouncedSearch, groceriesInput, maxPreparationInput, minRatingInput, recommendedOnly, selectedTypeIds.length],
   );
 
   const browseFilters = useMemo<RecipeBrowseFilters>(
     () => ({
       query: debouncedSearch || undefined,
       groceries: groceriesInput.trim() || undefined,
+      typeIds: selectedTypeIds.length > 0 ? selectedTypeIds : undefined,
       minRating: minRatingInput ? Number.parseFloat(minRatingInput) : undefined,
       maxPreparationMinutes: maxPreparationInput
         ? Number.parseInt(maxPreparationInput, 10)
@@ -69,7 +74,7 @@ export default function RecipesPage() {
       sort: hasActiveFilters ? sort : undefined,
       limit: PAGE_SIZE,
     }),
-    [debouncedSearch, groceriesInput, hasActiveFilters, maxPreparationInput, minRatingInput, recommendedOnly, sort],
+    [debouncedSearch, groceriesInput, hasActiveFilters, maxPreparationInput, minRatingInput, recommendedOnly, selectedTypeIds, sort],
   );
 
   const browseFiltersKey = useMemo(() => JSON.stringify(browseFilters), [browseFilters]);
@@ -121,6 +126,14 @@ export default function RecipesPage() {
   useEffect(() => {
     void loadRecipes(1, true);
   }, [browseFiltersKey, loadRecipes]);
+
+  useEffect(() => {
+    getRecipeTypes()
+      .then(setRecipeTypes)
+      .catch(() => {
+        setRecipeTypes([]);
+      });
+  }, []);
 
   useEffect(() => {
     if (!token || !isLoggedIn) {
@@ -190,6 +203,7 @@ export default function RecipesPage() {
     setSearchInput("");
     setDebouncedSearch("");
     setGroceriesInput("");
+    setSelectedTypeIds([]);
     setMinRatingInput("");
     setMaxPreparationInput("");
     setRecommendedOnly(false);
@@ -226,6 +240,20 @@ export default function RecipesPage() {
               onChange={(event) => setGroceriesInput(event.target.value)}
             />
           </label>
+
+          <div className={styles.filterField}>
+            <span>{t("recipeTypesLabel")}</span>
+            <RecipeTypeMultiSelect
+              options={recipeTypes}
+              selectedIds={selectedTypeIds}
+              onChangeAction={setSelectedTypeIds}
+              placeholder={t("recipeTypePickerPlaceholder")}
+              selectedCountLabelAction={(count) => t("recipeTypePickerSelectedCount", { count })}
+              selectAllLabel={t("selectAllTypes")}
+              clearLabel={t("clearTypes")}
+              emptyLabel={t("noRecipeTypesAvailable")}
+            />
+          </div>
 
           <label className={styles.filterField}>
             <span>{t("maxPreparationMinutesLabel")}</span>

@@ -36,6 +36,7 @@ export type CreateCommentInput = {
 export type BrowseRecipesInput = {
   query?: string;
   groceries?: string;
+  typeIds?: string[];
   minRating?: number;
   maxPreparationMinutes?: number;
   recommendedOnly?: boolean;
@@ -77,6 +78,7 @@ export class RecipesService implements OnApplicationBootstrap {
   async browse(input: BrowseRecipesInput = {}) {
     const normalizedQuery = (input.query ?? '').trim();
     const groceryTerms = this.parseTerms(input.groceries ?? '');
+    const typeObjectIds = this.normalizeTypeIds(input.typeIds ?? []);
     const page = this.normalizePage(input.page);
     const limit = this.normalizeLimit(input.limit);
     const minRating = this.normalizeMinRating(input.minRating);
@@ -106,12 +108,16 @@ export class RecipesService implements OnApplicationBootstrap {
       );
     }
 
-    if (andClauses.length > 0) {
-      filter.$and = andClauses;
-    }
-
     if (input.recommendedOnly === true) {
       filter.postedByRecommendedUser = true;
+    }
+
+    if (typeObjectIds.length > 0) {
+      andClauses.push({ typeIds: { $in: typeObjectIds } });
+    }
+
+    if (andClauses.length > 0) {
+      filter.$and = andClauses;
     }
 
     if (typeof minRating === 'number') {
@@ -122,12 +128,13 @@ export class RecipesService implements OnApplicationBootstrap {
 
     const hasQuery = Boolean(normalizedQuery);
     const hasGroceries = groceryTerms.length > 0;
+    const hasTypeFilter = typeObjectIds.length > 0;
     const hasMinRating = typeof minRating === 'number';
     const hasMaxPreparation = typeof maxPreparationMinutes === 'number';
     const hasRecommendedOnly = input.recommendedOnly === true;
 
     // Fastest path: no filters and newest order.
-    if (!hasQuery && !hasGroceries && !hasMinRating && !hasMaxPreparation && !hasRecommendedOnly && sort === 'newest') {
+    if (!hasQuery && !hasGroceries && !hasTypeFilter && !hasMinRating && !hasMaxPreparation && !hasRecommendedOnly && sort === 'newest') {
       const total = await this.recipeModel.countDocuments({});
       const totalPages = Math.max(1, Math.ceil(total / limit));
       const safePage = Math.min(page, totalPages);
@@ -1148,6 +1155,11 @@ export class RecipesService implements OnApplicationBootstrap {
       .flatMap((group) => group.split(/\s+/))
       .map((term) => term.trim())
       .filter(Boolean);
+  }
+
+  private normalizeTypeIds(typeIds: string[]) {
+    const uniqueIds = Array.from(new Set(typeIds.map((id) => id.trim()).filter(Boolean)));
+    return uniqueIds.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
   }
 
   private normalizePage(page?: number) {

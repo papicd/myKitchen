@@ -38,6 +38,7 @@ export class RecipesController {
   browse(
     @Query('query') query?: string,
     @Query('groceries') groceries?: string,
+    @Query('typeIds') typeIds?: string,
     @Query('minRating') minRating?: string,
     @Query('maxPreparationMinutes') maxPreparationMinutes?: string,
     @Query('recommendedOnly') recommendedOnly?: string,
@@ -48,6 +49,12 @@ export class RecipesController {
     return this.recipesService.browse({
       query,
       groceries,
+      typeIds: typeIds
+        ? typeIds
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean)
+        : undefined,
       minRating: minRating ? Number.parseFloat(minRating) : undefined,
       maxPreparationMinutes: maxPreparationMinutes
         ? Number.parseInt(maxPreparationMinutes, 10)
