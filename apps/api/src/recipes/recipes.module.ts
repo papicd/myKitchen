@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from '../users/users.module';
+import { RecipeType, RecipeTypeSchema } from './schemas/recipe-type.schema';
 import { Recipe, RecipeSchema } from './schemas/recipe.schema';
 import { RecipesController } from './recipes.controller';
 import { RecipesService } from './recipes.service';
@@ -10,7 +11,10 @@ import { RecipesService } from './recipes.service';
 @Module({
   imports: [
     UsersModule,
-    MongooseModule.forFeature([{ name: Recipe.name, schema: RecipeSchema }]),
+    MongooseModule.forFeature([
+      { name: Recipe.name, schema: RecipeSchema },
+      { name: RecipeType.name, schema: RecipeTypeSchema },
+    ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

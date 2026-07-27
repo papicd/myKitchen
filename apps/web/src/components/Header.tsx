@@ -48,6 +48,7 @@ export function Header() {
           <nav className={styles.nav}>
             <Link href="/" onClick={close}>{t("home")}</Link>
             <Link href="/recipes" onClick={close}>{t("recipes")}</Link>
+            <Link href="/contact" onClick={close}>{t("contact")}</Link>
             {isLoggedIn ? <Link href="/my-recipes" onClick={close}>{t("myRecipes")}</Link> : null}
             {isLoggedIn ? <Link href="/find" onClick={close}>{t("findByIngredients")}</Link> : null}
             {isLoggedIn ? <Link href="/add-recipe" onClick={close}>{t("addRecipe")}</Link> : null}

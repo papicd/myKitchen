@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { SuccessDialog } from "../../components/SuccessDialog";
-import { createRecipe } from "../../lib/api";
+import { createRecipe, createRecipeType, getRecipeTypes } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { RecipeType } from "../../lib/types";
 import { useTranslation } from "../../lib/useTranslation";
 import styles from "../page.module.scss";
 
@@ -14,7 +15,7 @@ type LinkItem = { label: string; url: string };
 
 export default function AddRecipePage() {
   const router = useRouter();
-  const { token, isLoggedIn } = useAuth();
+  const { user, token, isLoggedIn } = useAuth();
   const { t } = useTranslation();
   const [error, setError] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
@@ -26,6 +27,18 @@ export default function AddRecipePage() {
   const [linkItems, setLinkItems] = useState<LinkItem[]>([]);
   const [linkLabel, setLinkLabel] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
+  const [recipeTypes, setRecipeTypes] = useState<RecipeType[]>([]);
+  const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
+  const [newTypeName, setNewTypeName] = useState("");
+  const [newTypeColor, setNewTypeColor] = useState("#22C55E");
+
+  useEffect(() => {
+    getRecipeTypes()
+      .then(setRecipeTypes)
+      .catch((loadError) => {
+        setError(loadError instanceof Error ? loadError.message : t("cannotLoadRecipeTypes"));
+      });
+  }, [t]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,6 +46,11 @@ export default function AddRecipePage() {
 
     if (!token) {
       setError(t("mustBeLogged"));
+      return;
+    }
+
+    if (selectedTypeIds.length === 0) {
+      setError(t("pickAtLeastOneType"));
       return;
     }
 
@@ -49,6 +67,7 @@ export default function AddRecipePage() {
           steps: String(formData.get("steps")).split(/\n+/),
           preparationTime: String(formData.get("preparationTime")),
           servings: String(formData.get("servings")),
+          typeIds: selectedTypeIds,
           media: mediaItems.length > 0 ? mediaItems : undefined,
           links: linkItems.length > 0 ? linkItems : undefined,
         },
@@ -60,6 +79,7 @@ export default function AddRecipePage() {
       setMediaUrl("");
       setLinkLabel("");
       setLinkUrl("");
+      setSelectedTypeIds([]);
       setShowSuccess(true);
     } catch (createError) {
       setError(
@@ -154,6 +174,28 @@ export default function AddRecipePage() {
     setLinkItems(linkItems.filter((_, i) => i !== index));
   }
 
+  async function handleCreateType() {
+    if (!token || !user?.isAdmin) {
+      return;
+    }
+
+    try {
+      const created = await createRecipeType(
+        {
+          name: newTypeName,
+          color: newTypeColor,
+        },
+        token,
+      );
+
+      setRecipeTypes((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      setSelectedTypeIds((prev) => [...prev, created.id]);
+      setNewTypeName("");
+    } catch (typeError) {
+      setError(typeError instanceof Error ? typeError.message : t("cannotCreateRecipeType"));
+    }
+  }
+
   if (!isLoggedIn) {
     return (
       <main className={styles.page}>
@@ -216,6 +258,53 @@ export default function AddRecipePage() {
           <label htmlFor="servings">{t("servingsLabel")}</label>
           <input id="servings" name="servings" placeholder={t("servingsPlaceholder")} required />
         </div>
+
+        <div className={styles.field}>
+          <label htmlFor="typeIds">{t("recipeTypesLabel")}</label>
+          <select
+            id="typeIds"
+            multiple
+            value={selectedTypeIds}
+            onChange={(event) => {
+              const values = Array.from(event.target.selectedOptions).map((option) => option.value);
+              setSelectedTypeIds(values);
+            }}
+          >
+            {recipeTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name}
+              </option>
+            ))}
+          </select>
+          <p className={styles.hint}>{t("recipeTypesHint")}</p>
+        </div>
+
+        {user?.isAdmin ? (
+          <div className={styles.section}>
+            <h3>{t("addRecipeTypeTitle")}</h3>
+            <div className={styles.field}>
+              <label htmlFor="newTypeName">{t("recipeTypeNameLabel")}</label>
+              <input
+                id="newTypeName"
+                value={newTypeName}
+                onChange={(event) => setNewTypeName(event.target.value)}
+                placeholder={t("recipeTypeNamePlaceholder")}
+              />
+            </div>
+            <div className={styles.field}>
+              <label htmlFor="newTypeColor">{t("recipeTypeColorLabel")}</label>
+              <input
+                id="newTypeColor"
+                type="color"
+                value={newTypeColor}
+                onChange={(event) => setNewTypeColor(event.target.value.toUpperCase())}
+              />
+            </div>
+            <button type="button" className={styles.secondaryBtn} onClick={() => void handleCreateType()}>
+              {t("addRecipeTypeButton")}
+            </button>
+          </div>
+        ) : null}
 
         <div className={styles.section}>
           <h3>{t("mediaSection")}</h3>

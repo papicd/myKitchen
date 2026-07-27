@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Headers,
   HttpCode,
@@ -15,6 +16,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import {
   BrowseRecipesInput,
+  CreateRecipeTypeInput,
   CreateCommentInput,
   CreateRecipeInput,
   RecipesService,
@@ -61,6 +63,25 @@ export class RecipesController {
   search(@Query('q') query = '', @Headers('authorization') authorization?: string) {
     this.getUser(authorization);
     return this.recipesService.searchByGroceries(query);
+  }
+
+  @Get('types')
+  findAllTypes() {
+    return this.recipesService.findAllTypes();
+  }
+
+  @Post('types')
+  createType(
+    @Body() input: CreateRecipeTypeInput,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const { isAdmin } = this.getUser(authorization);
+
+    if (!isAdmin) {
+      throw new ForbiddenException('Samo admin moze da doda novi tip recepta');
+    }
+
+    return this.recipesService.createType(input);
   }
 
   @Get('mine')

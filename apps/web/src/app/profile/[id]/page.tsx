@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PageSpinner } from "../../../components/PageSpinner";
+import { RecipeTypeBadges } from "../../../components/RecipeTypeBadges";
 import { StarRating } from "../../../components/StarRating";
 import { getUserProfile, getUserRecipes, getSavedRecipes, toggleSaveRecipe } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
@@ -89,6 +90,7 @@ export default function UserProfilePage() {
             <Link href={`/recipes/${recipe.id}`}>
               <h2>{recipe.title}</h2>
               <p>{recipe.shortDescription}</p>
+              <RecipeTypeBadges types={recipe.types} maxVisible={3} />
               {recipe.postedByRecommendedUser ? (
                 <p className={styles.recommendedLabel}>{t("recommendedAuthor")}</p>
               ) : null}

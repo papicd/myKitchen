@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { UsersService } from '../users/users.service';
+import { RecipeType } from './schemas/recipe-type.schema';
 import { Recipe } from './schemas/recipe.schema';
 
 export type CreateRecipeInput = {
@@ -18,8 +19,14 @@ export type CreateRecipeInput = {
   steps: string[];
   preparationTime: string;
   servings: string;
+  typeIds?: string[];
   media?: Array<{ type: 'image' | 'video' | 'pdf'; url: string }>;
   links?: Array<{ label: string; url: string }>;
+};
+
+export type CreateRecipeTypeInput = {
+  name?: string;
+  color?: string;
 };
 
 export type CreateCommentInput = {
@@ -37,21 +44,33 @@ export type BrowseRecipesInput = {
   sort?: 'newest' | 'rating' | 'quickest';
 };
 
+export type RecipeTypeOutput = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 @Injectable()
 export class RecipesService implements OnApplicationBootstrap {
   constructor(
     @InjectModel(Recipe.name) private readonly recipeModel: Model<Recipe>,
+    @InjectModel(RecipeType.name) private readonly recipeTypeModel: Model<RecipeType>,
     private readonly usersService: UsersService,
   ) {}
 
   async onApplicationBootstrap() {
+    await this.seedRecipeTypes();
     await this.seedRecipes();
+    await this.ensureRecipesHaveDefaultType();
     await this.enrichRecipesWithMedia();
     await this.syncRecommendedAuthorFlags();
   }
 
   async findAll() {
-    const recipes = await this.recipeModel.find().sort({ createdAt: -1 });
+    const recipes = await this.recipeModel
+      .find()
+      .sort({ createdAt: -1 })
+      .populate({ path: 'typeIds', select: 'name color' });
     return this.attachAuthors(recipes.map((recipe) => this.toListItem(recipe)));
   }
 
@@ -101,7 +120,10 @@ export class RecipesService implements OnApplicationBootstrap {
       };
     }
 
-    const recipes = await this.recipeModel.find(filter).sort({ createdAt: -1 });
+    const recipes = await this.recipeModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .populate({ path: 'typeIds', select: 'name color' });
 
     const filteredByPreparation = recipes.filter((recipe) => {
       if (typeof maxPreparationMinutes !== 'number') {
@@ -184,7 +206,9 @@ export class RecipesService implements OnApplicationBootstrap {
   }
 
   async findOne(id: string, currentUserId?: string) {
-    const recipe = await this.recipeModel.findById(id);
+    const recipe = await this.recipeModel
+      .findById(id)
+      .populate({ path: 'typeIds', select: 'name color' });
 
     if (!recipe) {
       throw new NotFoundException('Recept nije pronadjen');
@@ -196,7 +220,8 @@ export class RecipesService implements OnApplicationBootstrap {
   async findByUser(userId: string) {
     const recipes = await this.recipeModel
       .find({ createdBy: new Types.ObjectId(userId) })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .populate({ path: 'typeIds', select: 'name color' });
 
     return this.attachAuthors(recipes.map((recipe) => this.toListItem(recipe)));
   }
@@ -210,7 +235,8 @@ export class RecipesService implements OnApplicationBootstrap {
 
     const recipes = await this.recipeModel
       .find({ _id: { $in: savedRecipeIds.map((id) => new Types.ObjectId(id)) } })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .populate({ path: 'typeIds', select: 'name color' });
 
     return this.attachAuthors(recipes.map((recipe) => this.toListItem(recipe, userId)));
   }
@@ -218,17 +244,45 @@ export class RecipesService implements OnApplicationBootstrap {
   async findRatedByUser(userId: string) {
     const recipes = await this.recipeModel
       .find({ 'ratings.userId': new Types.ObjectId(userId) })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .populate({ path: 'typeIds', select: 'name color' });
 
     return this.attachAuthors(recipes.map((recipe) => this.toListItem(recipe, userId)));
   }
 
+  async findAllTypes() {
+    const types = await this.recipeTypeModel.find().sort({ name: 1 });
+    return types.map((type) => this.toRecipeType(type));
+  }
+
+  async createType(input: CreateRecipeTypeInput) {
+    const name = (input.name ?? '').trim();
+    const color = this.normalizeColor(input.color ?? '');
+
+    if (!name) {
+      throw new BadRequestException('Naziv tipa recepta je obavezan');
+    }
+
+    const existing = await this.recipeTypeModel.findOne({
+      name: { $regex: `^${this.escapeRegExp(name)}$`, $options: 'i' },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Tip recepta sa ovim nazivom vec postoji');
+    }
+
+    const created = await this.recipeTypeModel.create({ name, color });
+    return this.toRecipeType(created);
+  }
+
   async create(input: CreateRecipeInput, userId: string) {
     const author = await this.usersService.findById(userId);
+    const typeIds = await this.validateAndMapTypeIds(input.typeIds ?? []);
     const recipe = await this.recipeModel.create({
       ...input,
       ingredients: this.cleanList(input.ingredients),
       steps: this.cleanList(input.steps),
+      typeIds,
       postedByRecommendedUser: Boolean(author?.isRecommended),
       createdBy: new Types.ObjectId(userId),
     });
@@ -267,6 +321,8 @@ export class RecipesService implements OnApplicationBootstrap {
       throw new ForbiddenException('Nemate dozvolu za izmenu ovog recepta');
     }
 
+    const typeIds = await this.validateAndMapTypeIds(input.typeIds ?? []);
+
     const updated = await this.recipeModel.findByIdAndUpdate(
       id,
       {
@@ -275,6 +331,7 @@ export class RecipesService implements OnApplicationBootstrap {
         description: input.description,
         ingredients: this.cleanList(input.ingredients),
         steps: this.cleanList(input.steps),
+        typeIds,
         preparationTime: input.preparationTime,
         servings: input.servings,
         ...(input.media ? { media: input.media } : {}),
@@ -377,12 +434,14 @@ export class RecipesService implements OnApplicationBootstrap {
       return [];
     }
 
-    const recipes = await this.recipeModel.find({
-      $or: terms.flatMap((term) => {
-        const pattern = new RegExp(this.escapeRegExp(term), 'i');
-        return [{ ingredients: pattern }, { title: pattern }, { description: pattern }];
-      }),
-    });
+    const recipes = await this.recipeModel
+      .find({
+        $or: terms.flatMap((term) => {
+          const pattern = new RegExp(this.escapeRegExp(term), 'i');
+          return [{ ingredients: pattern }, { title: pattern }, { description: pattern }];
+        }),
+      })
+      .populate({ path: 'typeIds', select: 'name color' });
 
     const scoredRecipes = recipes
       .map((recipe) => {
@@ -406,6 +465,9 @@ export class RecipesService implements OnApplicationBootstrap {
 
   private async seedRecipes() {
     const admin = await this.usersService.findByEmail('dragan.papic1996@gmail.com');
+    const defaultType = await this.recipeTypeModel.findOne({
+      name: { $regex: '^glavno jelo$', $options: 'i' },
+    });
 
     if (!admin?._id) {
       return;
@@ -686,6 +748,7 @@ export class RecipesService implements OnApplicationBootstrap {
             ...recipe,
             ingredients: this.cleanList(recipe.ingredients),
             steps: this.cleanList(recipe.steps),
+            ...(defaultType?._id ? { typeIds: [defaultType._id] } : {}),
             createdBy: admin._id,
           },
         },
@@ -696,6 +759,88 @@ export class RecipesService implements OnApplicationBootstrap {
 
   private cleanList(items: string[]) {
     return items.map((item) => item.trim()).filter(Boolean);
+  }
+
+  private async validateAndMapTypeIds(typeIds: string[]) {
+    const normalizedIds = Array.from(
+      new Set(typeIds.map((id) => id.trim()).filter(Boolean)),
+    );
+
+    if (normalizedIds.length === 0) {
+      throw new BadRequestException('Recept mora imati bar jedan tip');
+    }
+
+    if (normalizedIds.some((id) => !Types.ObjectId.isValid(id))) {
+      throw new BadRequestException('Prosledjen je neispravan tip recepta');
+    }
+
+    const objectIds = normalizedIds.map((id) => new Types.ObjectId(id));
+    const existingTypes = await this.recipeTypeModel.find(
+      { _id: { $in: objectIds } },
+      { _id: 1 },
+    );
+
+    if (existingTypes.length !== objectIds.length) {
+      throw new BadRequestException('Jedan ili vise tipova recepta ne postoji');
+    }
+
+    return objectIds;
+  }
+
+  private normalizeColor(value: string) {
+    const normalized = value.trim().toUpperCase();
+    if (!/^#([0-9A-F]{3}|[0-9A-F]{6})$/.test(normalized)) {
+      throw new BadRequestException('Boja mora biti HEX kod, na primer #22C55E');
+    }
+    return normalized;
+  }
+
+  private toRecipeType(type: RecipeType & { _id?: unknown }): RecipeTypeOutput {
+    return {
+      id: String(type._id),
+      name: type.name,
+      color: type.color,
+    };
+  }
+
+  private async seedRecipeTypes() {
+    const defaults: Array<{ name: string; color: string }> = [
+      { name: 'dorucak', color: '#F59E0B' },
+      { name: 'glavno jelo', color: '#EF4444' },
+      { name: 'predjelo', color: '#8B5CF6' },
+      { name: 'pasta', color: '#F97316' },
+      { name: 'pizze', color: '#DC2626' },
+      { name: 'slatka jela', color: '#EC4899' },
+      { name: 'vegetarijanska hrana', color: '#10B981' },
+      { name: 'veganska hrana', color: '#14B8A6' },
+    ];
+
+    for (const item of defaults) {
+      await this.recipeTypeModel.updateOne(
+        { name: { $regex: `^${this.escapeRegExp(item.name)}$`, $options: 'i' } },
+        { $setOnInsert: item },
+        { upsert: true },
+      );
+    }
+  }
+
+  private async ensureRecipesHaveDefaultType() {
+    const defaultType = await this.recipeTypeModel.findOne({
+      name: { $regex: '^glavno jelo$', $options: 'i' },
+    });
+
+    if (!defaultType?._id) {
+      return;
+    }
+
+    await this.recipeModel.updateMany(
+      {
+        $or: [{ typeIds: { $exists: false } }, { typeIds: { $size: 0 } }],
+      },
+      {
+        $set: { typeIds: [defaultType._id] },
+      },
+    );
   }
 
   private async enrichRecipesWithMedia() {
@@ -810,7 +955,15 @@ export class RecipesService implements OnApplicationBootstrap {
     recipe: Recipe & { _id?: unknown; createdBy?: unknown },
     currentUserId?: string,
   ) {
-    const [details] = await this.attachAuthors([this.toDetails(recipe, currentUserId)]);
+    const populatedRecipe = await this.recipeModel
+      .findById(String(recipe._id))
+      .populate({ path: 'typeIds', select: 'name color' });
+
+    if (!populatedRecipe) {
+      throw new NotFoundException('Recept nije pronadjen');
+    }
+
+    const [details] = await this.attachAuthors([this.toDetails(populatedRecipe, currentUserId)]);
     return this.attachCommentAuthors(details);
   }
 
@@ -861,6 +1014,7 @@ export class RecipesService implements OnApplicationBootstrap {
       servings: recipe.servings,
       averageRating,
       ratingsCount,
+      types: this.extractRecipeTypes(recipe),
       postedByRecommendedUser: Boolean(recipe.postedByRecommendedUser),
       currentUserRating: currentUserRating?.value,
       author: {
@@ -895,6 +1049,35 @@ export class RecipesService implements OnApplicationBootstrap {
       ...(recipe.media && recipe.media.length > 0 ? { media: recipe.media } : {}),
       ...(recipe.links && recipe.links.length > 0 ? { links: recipe.links } : {}),
     };
+  }
+
+  private extractRecipeTypes(recipe: Recipe & { typeIds?: unknown }) {
+    if (!Array.isArray(recipe.typeIds)) {
+      return [];
+    }
+
+    return recipe.typeIds
+      .map((entry) => {
+        if (
+          entry &&
+          typeof entry === 'object' &&
+          '_id' in entry &&
+          'name' in entry &&
+          'color' in entry
+        ) {
+          const record = entry as { _id: unknown; name: unknown; color: unknown };
+          if (typeof record.name === 'string' && typeof record.color === 'string') {
+            return {
+              id: String(record._id),
+              name: record.name,
+              color: record.color,
+            };
+          }
+        }
+
+        return null;
+      })
+      .filter((entry): entry is RecipeTypeOutput => entry !== null);
   }
 
   private escapeRegExp(value: string) {

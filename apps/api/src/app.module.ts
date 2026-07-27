@@ -12,11 +12,32 @@ import { UsersModule } from './users/users.module';
     ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        uri:
-          configService.get<string>('MONGODB_URI') ??
-          'mongodb://127.0.0.1:27017/new-folder',
-      }),
+      useFactory: (configService: ConfigService) => {
+        const explicitUri = configService.get<string>('MONGODB_URI')?.trim();
+        if (explicitUri) {
+          return { uri: explicitUri };
+        }
+
+        const mongoEnv = (configService.get<string>('MONGO_ENV') ?? 'local')
+          .trim()
+          .toLowerCase();
+
+        if (mongoEnv === 'atlas') {
+          const atlasUri = configService.get<string>('MONGODB_ATLAS_URI')?.trim();
+          if (!atlasUri) {
+            throw new Error(
+              'MONGO_ENV=atlas je ukljucen, ali MONGODB_ATLAS_URI nije podesena.',
+            );
+          }
+          return { uri: atlasUri };
+        }
+
+        const localUri =
+          configService.get<string>('MONGODB_LOCAL_URI')?.trim() ??
+          'mongodb://127.0.0.1:27017/new-folder';
+
+        return { uri: localUri };
+      },
     }),
     AuthModule,
     RecipesModule,

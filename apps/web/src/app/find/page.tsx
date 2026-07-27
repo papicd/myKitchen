@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { RecipeTypeBadges } from "../../components/RecipeTypeBadges";
 import { getSavedRecipes, searchRecipes, toggleSaveRecipe } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useTranslation } from "../../lib/useTranslation";
@@ -108,6 +109,7 @@ export default function FindPage() {
             <Link href={`/recipes/${recipe.id}`}>
               <h2>{recipe.title}</h2>
               <p>{recipe.shortDescription}</p>
+              <RecipeTypeBadges types={recipe.types} maxVisible={3} />
               <div className={styles.meta}>
                 <span>{t("matches", { count: recipe.matchedGroceries ?? 0 })}</span>
               </div>

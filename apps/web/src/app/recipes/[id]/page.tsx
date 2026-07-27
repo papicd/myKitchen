@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { ConfirmDialog } from "../../../components/ConfirmDialog";
 import { PageSpinner } from "../../../components/PageSpinner";
+import { RecipeTypeBadges } from "../../../components/RecipeTypeBadges";
 import { StarRating } from "../../../components/StarRating";
 import {
   addRecipeComment,
@@ -239,6 +240,7 @@ export default function RecipeDetailsPage() {
                   </div>
                 ) : null}
               </div>
+              <RecipeTypeBadges types={recipe.types} />
               <p className={styles.lead}>{recipe.description}</p>
               <div className={styles.metaGrid}>
                 <article className={styles.metaCard}>
@@ -251,7 +253,11 @@ export default function RecipeDetailsPage() {
                 </article>
                 <article className={styles.metaCard}>
                   <p className={styles.metaLabel}>{t("category")}</p>
-                  <p className={styles.metaValue}>{t("homeTitle")}</p>
+                  <p className={styles.metaValue}>
+                    {recipe.types.length > 0
+                      ? recipe.types.map((type) => type.name).join(", ")
+                      : t("noRecipeTypes")}
+                  </p>
                 </article>
               </div>
               <div className={styles.ratingBlock}>

@@ -32,6 +32,24 @@
 $ npm install
 ```
 
+## Environment setup (local vs Atlas)
+
+Create your local env file and choose Mongo source:
+
+```bash
+cp .env.example .env.local
+```
+
+- `MONGO_ENV=local` uses `MONGODB_LOCAL_URI`
+- `MONGO_ENV=atlas` uses `MONGODB_ATLAS_URI`
+- `MONGODB_URI` (if set) overrides both
+
+Default local URI:
+
+```dotenv
+MONGODB_LOCAL_URI=mongodb://127.0.0.1:27017/new-folder
+```
+
 ## Compile and run the project
 
 ```bash

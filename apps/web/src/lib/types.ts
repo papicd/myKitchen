@@ -27,6 +27,12 @@ export type Link = {
   url: string;
 };
 
+export type RecipeType = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 export type RecipeAuthor = {
   id: string;
   firstName: string;
@@ -55,6 +61,7 @@ export type RecipeListItem = {
   matchedGroceries?: number;
   averageRating: number;
   ratingsCount: number;
+  types: RecipeType[];
   postedByRecommendedUser: boolean;
   currentUserRating?: number;
   author: RecipeAuthor;

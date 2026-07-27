@@ -5,6 +5,7 @@ import {
   RecipeBrowseResponse,
   RecipeDetails,
   RecipeListItem,
+  RecipeType,
 } from "./types";
 
 export class AuthError extends Error {
@@ -164,6 +165,7 @@ export function createRecipe(
     steps: string[];
     preparationTime: string;
     servings: string;
+    typeIds: string[];
     media?: Array<{ type: 'image' | 'video' | 'pdf'; url: string }>;
     links?: Array<{ label: string; url: string }>;
   },
@@ -186,6 +188,7 @@ export function updateRecipe(
     steps: string[];
     preparationTime: string;
     servings: string;
+    typeIds: string[];
     media?: Array<{ type: 'image' | 'video' | 'pdf'; url: string }>;
     links?: Array<{ label: string; url: string }>;
   },
@@ -223,6 +226,21 @@ export function updateUserRecommendation(
     token,
     body: { isRecommended },
     method: "PATCH",
+  });
+}
+
+export function getRecipeTypes() {
+  return request<RecipeType[]>('/recipes/types');
+}
+
+export function createRecipeType(
+  body: { name: string; color: string },
+  token: string,
+) {
+  return request<RecipeType>('/recipes/types', {
+    token,
+    body,
+    method: 'POST',
   });
 }
 

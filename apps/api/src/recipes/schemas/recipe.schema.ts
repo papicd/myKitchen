@@ -26,6 +26,9 @@ export class Recipe {
   @Prop({ required: true })
   servings: string;
 
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'RecipeType' }], default: [] })
+  typeIds: Types.ObjectId[];
+
   @Prop({
     type: [
       {

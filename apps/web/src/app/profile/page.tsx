@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PageSpinner } from "../../components/PageSpinner";
+import { RecipeTypeBadges } from "../../components/RecipeTypeBadges";
 import { deleteRecipe, getMyRecipes, updateMyProfile } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useTranslation } from "../../lib/useTranslation";
@@ -317,6 +318,7 @@ export default function ProfilePage() {
                   >
                     <h3>{recipe.title}</h3>
                     <p>{recipe.shortDescription}</p>
+                    <RecipeTypeBadges types={recipe.types} maxVisible={3} />
                     <div className={styles.cardFooter}>
                       <span className={styles.authorLink}>
                         <span className={styles.avatar}>

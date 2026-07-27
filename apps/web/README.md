@@ -16,6 +16,35 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Contact Form Email Setup
+
+Contact form is available at `/contact` and sends email to `dragan.papic.czv@gmail.com` by default.
+
+Required environment variables:
+
+```bash
+SMTP_HOST=smtp.your-provider.com
+SMTP_PORT=587
+SMTP_USER=your-smtp-user
+SMTP_PASS=your-smtp-password
+```
+
+Optional environment variables:
+
+```bash
+SMTP_SECURE=false
+CONTACT_FROM_EMAIL=no-reply@your-domain.com
+CONTACT_TO_EMAIL=dragan.papic.czv@gmail.com
+```
+
+Route handler location: `src/app/api/contact/route.ts`.
+
+## Recipe Types
+
+- Each recipe now supports multiple types (for example: `pizze` + `vegetarijanska hrana`).
+- Type badges with custom colors are shown on recipe cards and recipe details.
+- Admin users can add new recipe types (name + hex color) from add/edit recipe pages.
+
 ## Troubleshooting (Windows ENOENT in `.next/static/development/_buildManifest.js.tmp.*`)
 
 If you see repeated `ENOENT` errors for `_buildManifest.js.tmp.*` on Windows:

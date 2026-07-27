@@ -26,6 +26,7 @@ function createRecipe(overrides: Record<string, unknown> = {}) {
 
 describe('RecipesService comments', () => {
   let recipeModel: { findById: jest.Mock };
+  let recipeTypeModel: { find: jest.Mock; findOne: jest.Mock; create: jest.Mock; updateOne: jest.Mock };
   let usersService: {
     findById: jest.Mock;
     findPublicByIds: jest.Mock;
@@ -35,6 +36,12 @@ describe('RecipesService comments', () => {
   beforeEach(() => {
     recipeModel = {
       findById: jest.fn(),
+    };
+    recipeTypeModel = {
+      find: jest.fn(),
+      findOne: jest.fn(),
+      create: jest.fn(),
+      updateOne: jest.fn(),
     };
     usersService = {
       findById: jest.fn(),
@@ -52,12 +59,19 @@ describe('RecipesService comments', () => {
         ),
       ),
     };
-    service = new RecipesService(recipeModel as never, usersService as never);
+    service = new RecipesService(
+      recipeModel as never,
+      recipeTypeModel as never,
+      usersService as never,
+    );
   });
 
   it('adds a trimmed comment and marks recipe-owner comments', async () => {
     const recipe = createRecipe({ createdBy: commenterId });
-    recipeModel.findById.mockResolvedValue(recipe);
+    recipeModel.findById.mockResolvedValueOnce(recipe);
+    recipeModel.findById.mockReturnValueOnce({
+      populate: jest.fn().mockResolvedValue(recipe),
+    });
     usersService.findById.mockResolvedValue({ _id: commenterId });
 
     const details = await service.addComment(String(recipe._id), String(commenterId), {
