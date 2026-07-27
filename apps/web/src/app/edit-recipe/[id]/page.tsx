@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { PageSpinner } from "../../../components/PageSpinner";
+import { RecipeTypeMultiSelect } from "../../../components/RecipeTypeMultiSelect";
 import { SuccessDialog } from "../../../components/SuccessDialog";
 import { createRecipeType, getRecipe, getRecipeTypes, updateRecipe } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
@@ -296,21 +297,17 @@ export default function EditRecipePage() {
 
           <div className={styles.field}>
             <label htmlFor="typeIds">{t("recipeTypesLabel")}</label>
-            <select
+            <RecipeTypeMultiSelect
               id="typeIds"
-              multiple
-              value={selectedTypeIds}
-              onChange={(event) => {
-                const values = Array.from(event.target.selectedOptions).map((option) => option.value);
-                setSelectedTypeIds(values);
-              }}
-            >
-              {recipeTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
-              ))}
-            </select>
+              options={recipeTypes}
+              selectedIds={selectedTypeIds}
+              onChangeAction={setSelectedTypeIds}
+              placeholder={t("recipeTypePickerPlaceholder")}
+              selectedCountLabelAction={(count) => t("recipeTypePickerSelectedCount", { count })}
+              selectAllLabel={t("selectAllTypes")}
+              clearLabel={t("clearTypes")}
+              emptyLabel={t("noRecipeTypesAvailable")}
+            />
             <p className={styles.hint}>{t("recipeTypesHint")}</p>
           </div>
 
