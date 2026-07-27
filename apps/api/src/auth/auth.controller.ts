@@ -6,7 +6,13 @@ import {
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
-import { AuthService, LoginInput, RegisterInput } from './auth.service';
+import {
+  AuthService,
+  ForgotPasswordInput,
+  LoginInput,
+  RegisterInput,
+  ResetPasswordInput,
+} from './auth.service';
 
 @Controller('auth')
 export class AuthController {
@@ -20,6 +26,16 @@ export class AuthController {
   @Post('login')
   login(@Body() input: LoginInput) {
     return this.authService.login(input);
+  }
+
+  @Post('forgot-password')
+  forgotPassword(@Body() input: ForgotPasswordInput) {
+    return this.authService.forgotPassword(input);
+  }
+
+  @Post('reset-password')
+  resetPassword(@Body() input: ResetPasswordInput) {
+    return this.authService.resetPassword(input);
   }
 
   @Get('me')

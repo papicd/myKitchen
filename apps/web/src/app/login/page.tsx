@@ -52,6 +52,9 @@ export default function LoginPage() {
           <label htmlFor="password">{t("password")}</label>
           <input id="password" name="password" required type="password" />
         </div>
+        <p className={styles.muted}>
+          <Link href="/forgot-password">{t("forgotPasswordLink")}</Link>
+        </p>
         {error ? <p className={styles.error}>{error}</p> : null}
         <button className={styles.button}>{t("loginButton")}</button>
       </form>

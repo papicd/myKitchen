@@ -65,6 +65,18 @@ export function signup(body: {
   return request<AuthResponse>("/auth/register", { body });
 }
 
+export function forgotPassword(email: string) {
+  return request<{ success: boolean; devResetLink?: string }>("/auth/forgot-password", {
+    body: { email },
+  });
+}
+
+export function resetPassword(token: string, newPassword: string) {
+  return request<{ success: boolean }>("/auth/reset-password", {
+    body: { token, newPassword },
+  });
+}
+
 export function getRecipes() {
   return request<RecipeListItem[]>("/recipes");
 }

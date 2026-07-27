@@ -42,6 +42,17 @@ Edit `.env.local` (or `.env`) and choose Mongo source:
 
 Runtime loads `.env.local` first, then `.env`.
 
+Forgot password email configuration:
+
+- `PASSWORD_RESET_URL` (example: `https://your-web-domain.com/reset-password`)
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`
+- optional: `SMTP_SECURE=true` and `CONTACT_FROM_EMAIL`
+
+Development fallback:
+
+- In non-production mode, `POST /api/auth/forgot-password` also returns `devResetLink` for local testing.
+- Set `ENABLE_DEV_PASSWORD_RESET_LINK=false` to disable this fallback.
+
 Default local URI:
 
 ```dotenv

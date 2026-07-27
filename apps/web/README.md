@@ -39,6 +39,22 @@ CONTACT_TO_EMAIL=dragan.papic.czv@gmail.com
 
 Route handler location: `src/app/api/contact/route.ts`.
 
+## Auth / Forgot Password Setup
+
+Required web environment variable:
+
+```bash
+NEXT_PUBLIC_API_URL=https://your-api-domain.com/api
+```
+
+Backend (API) should set:
+
+```bash
+PASSWORD_RESET_URL=https://your-web-domain.com/reset-password
+```
+
+In local development (`NODE_ENV` not set to `production`), forgot-password may return a clickable `devResetLink` in the response for faster testing without SMTP.
+
 ## Recipe Types
 
 - Each recipe now supports multiple types (for example: `pizze` + `vegetarijanska hrana`).

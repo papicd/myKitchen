@@ -81,6 +81,34 @@ export class UsersService implements OnApplicationBootstrap {
     return this.userModel.findOne({ email: email.toLowerCase().trim() });
   }
 
+  async setPasswordResetToken(userId: string, tokenHash: string, expiresAt: Date) {
+    await this.userModel.updateOne(
+      { _id: new Types.ObjectId(userId) },
+      {
+        $set: {
+          passwordResetTokenHash: tokenHash,
+          passwordResetExpiresAt: expiresAt,
+        },
+      },
+    );
+  }
+
+  async resetPasswordWithToken(tokenHash: string, newPassword: string) {
+    const user = await this.userModel.findOne({
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpiresAt: { $gt: new Date() },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Reset link nije ispravan ili je istekao');
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.passwordResetTokenHash = null;
+    user.passwordResetExpiresAt = null;
+    await user.save();
+  }
+
   async findById(id: string) {
     return this.userModel.findById(id);
   }
