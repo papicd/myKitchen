@@ -260,7 +260,7 @@ function HomeScreen({
         <View style={s.heroBrandRow}>
           <View style={s.heroBrandMark}><Text style={{ fontSize: 24 }}>🍲</Text></View>
           <View>
-            <Text style={s.heroBrandName}>Moja Kuhinja</Text>
+            <Text style={s.heroBrandName}>Šta pojesti</Text>
             <Text style={s.heroBrandSub}>DOMAĆA KUHINJA</Text>
           </View>
         </View>
@@ -316,7 +316,7 @@ function HomeScreen({
           <Avatar name={`${user.firstName} ${user.lastName}`} size={48} />
           <View style={{ flex: 1 }}>
             <Text style={s.welcomeName}>Zdravo, {user.firstName}! 👋</Text>
-            <Text style={s.welcomeSub}>Prijavljeni ste na Moja Kuhinja.</Text>
+            <Text style={s.welcomeSub}>Prijavljeni ste na Sta pojesti.</Text>
           </View>
         </View>
       ) : (
@@ -763,7 +763,7 @@ function AppHeader({ user }: { user: User | null }) {
       <View style={s.appHeaderBrand}>
         <View style={s.appHeaderMark}><Text style={{ fontSize: 22 }}>🍲</Text></View>
         <View>
-          <Text style={s.appHeaderName}>Moja Kuhinja</Text>
+          <Text style={s.appHeaderName}>Sta pojesti</Text>
           <Text style={s.appHeaderSub}>DOMAĆA KUHINJA</Text>
         </View>
       </View>
