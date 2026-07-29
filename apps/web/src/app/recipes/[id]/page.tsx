@@ -241,16 +241,20 @@ export default function RecipeDetailsPage() {
                 ) : null}
               </div>
               <RecipeTypeBadges types={recipe.types} />
-              <p className={styles.lead}>{recipe.description}</p>
+              {recipe.description ? <p className={styles.lead}>{recipe.description}</p> : null}
               <div className={styles.metaGrid}>
-                <article className={styles.metaCard}>
-                  <p className={styles.metaLabel}>{t('preparationTimeLabel')}</p>
-                  <p className={styles.metaValue}>{recipe.preparationTime}</p>
-                </article>
-                <article className={styles.metaCard}>
-                  <p className={styles.metaLabel}>{t('servingsLabel')}</p>
-                  <p className={styles.metaValue}>{recipe.servings}</p>
-                </article>
+                {recipe.preparationTime ? (
+                  <article className={styles.metaCard}>
+                    <p className={styles.metaLabel}>{t('preparationTimeLabel')}</p>
+                    <p className={styles.metaValue}>{recipe.preparationTime}</p>
+                  </article>
+                ) : null}
+                {recipe.servings ? (
+                  <article className={styles.metaCard}>
+                    <p className={styles.metaLabel}>{t('servingsLabel')}</p>
+                    <p className={styles.metaValue}>{recipe.servings}</p>
+                  </article>
+                ) : null}
                 <article className={styles.metaCard}>
                   <p className={styles.metaLabel}>{t("category")}</p>
                   <p className={styles.metaValue}>

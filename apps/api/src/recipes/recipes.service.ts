@@ -14,11 +14,11 @@ import { Recipe } from './schemas/recipe.schema';
 export type CreateRecipeInput = {
   title: string;
   shortDescription: string;
-  description: string;
+  description?: string;
   ingredients: string[];
   steps: string[];
-  preparationTime: string;
-  servings: string;
+  preparationTime?: string;
+  servings?: string;
   typeIds?: string[];
   media?: Array<{ type: 'image' | 'video' | 'pdf'; url: string }>;
   links?: Array<{ label: string; url: string }>;
@@ -342,11 +342,23 @@ export class RecipesService implements OnApplicationBootstrap {
 
   async create(input: CreateRecipeInput, userId: string) {
     const author = await this.usersService.findById(userId);
+    const title = this.normalizeRequiredText(input.title, 'Naziv recepta je obavezan');
+    const shortDescription = this.normalizeRequiredText(
+      input.shortDescription,
+      'Kratak opis je obavezan',
+    );
+    const ingredients = this.cleanRequiredList(input.ingredients, 'Recept mora imati bar jedan sastojak');
+    const steps = this.cleanRequiredList(input.steps, 'Recept mora imati bar jedan korak pripreme');
     const typeIds = await this.validateAndMapTypeIds(input.typeIds ?? []);
     const recipe = await this.recipeModel.create({
       ...input,
-      ingredients: this.cleanList(input.ingredients),
-      steps: this.cleanList(input.steps),
+      title,
+      shortDescription,
+      description: this.normalizeOptionalText(input.description),
+      ingredients,
+      steps,
+      preparationTime: this.normalizeOptionalText(input.preparationTime),
+      servings: this.normalizeOptionalText(input.servings),
       typeIds,
       postedByRecommendedUser: Boolean(author?.isRecommended),
       createdBy: new Types.ObjectId(userId),
@@ -387,18 +399,25 @@ export class RecipesService implements OnApplicationBootstrap {
     }
 
     const typeIds = await this.validateAndMapTypeIds(input.typeIds ?? []);
+    const title = this.normalizeRequiredText(input.title, 'Naziv recepta je obavezan');
+    const shortDescription = this.normalizeRequiredText(
+      input.shortDescription,
+      'Kratak opis je obavezan',
+    );
+    const ingredients = this.cleanRequiredList(input.ingredients, 'Recept mora imati bar jedan sastojak');
+    const steps = this.cleanRequiredList(input.steps, 'Recept mora imati bar jedan korak pripreme');
 
     const updated = await this.recipeModel.findByIdAndUpdate(
       id,
       {
-        title: input.title,
-        shortDescription: input.shortDescription,
-        description: input.description,
-        ingredients: this.cleanList(input.ingredients),
-        steps: this.cleanList(input.steps),
+        title,
+        shortDescription,
+        description: this.normalizeOptionalText(input.description),
+        ingredients,
+        steps,
         typeIds,
-        preparationTime: input.preparationTime,
-        servings: input.servings,
+        preparationTime: this.normalizeOptionalText(input.preparationTime),
+        servings: this.normalizeOptionalText(input.servings),
         ...(input.media ? { media: input.media } : {}),
         ...(input.links ? { links: input.links } : {}),
       },
@@ -839,6 +858,30 @@ export class RecipesService implements OnApplicationBootstrap {
 
   private cleanList(items: string[]) {
     return items.map((item) => item.trim()).filter(Boolean);
+  }
+
+  private cleanRequiredList(items: string[] | undefined, message: string) {
+    const normalized = this.cleanList(items ?? []);
+
+    if (normalized.length === 0) {
+      throw new BadRequestException(message);
+    }
+
+    return normalized;
+  }
+
+  private normalizeRequiredText(value: string | undefined, message: string) {
+    const normalized = value?.trim();
+
+    if (!normalized) {
+      throw new BadRequestException(message);
+    }
+
+    return normalized;
+  }
+
+  private normalizeOptionalText(value?: string) {
+    return value?.trim() ?? '';
   }
 
   private async validateAndMapTypeIds(typeIds: string[]) {

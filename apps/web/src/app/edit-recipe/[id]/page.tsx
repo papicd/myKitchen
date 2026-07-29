@@ -15,6 +15,20 @@ import styles from "../../page.module.scss";
 type MediaItem = { type: 'image' | 'video' | 'pdf'; url: string };
 type LinkItem = { label: string; url: string };
 
+const INGREDIENTS_SEPARATOR = /[,\n]+/;
+const STEPS_SEPARATOR = /\n+/;
+
+function normalizeText(value: FormDataEntryValue | null) {
+  return String(value ?? '').trim();
+}
+
+function parseList(value: FormDataEntryValue | null, separator: RegExp) {
+  return normalizeText(value)
+    .split(separator)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export default function EditRecipePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -38,29 +52,57 @@ export default function EditRecipePage() {
   const [newTypeName, setNewTypeName] = useState("");
   const [newTypeColor, setNewTypeColor] = useState("#22C55E");
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isLoggedIn || !token) return;
 
+    let isMounted = true;
+
     getRecipe(params.id, token)
       .then((data) => {
-        setRecipe(data);
-        setMediaItems(data.media || []);
-        setLinkItems(data.links || []);
-        setSelectedTypeIds(data.types.map((type) => type.id));
+        if (isMounted) {
+          setRecipe(data);
+          setMediaItems(data.media || []);
+          setLinkItems(data.links || []);
+          setSelectedTypeIds(data.types.map((type) => type.id));
+        }
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : t("cannotLoadRecipe"));
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : t("cannotLoadRecipe"));
+        }
       })
-      .finally(() => setLoading(false));
-  }, [isLoggedIn, params.id, token, t]);
-
-  useEffect(() => {
-    getRecipeTypes()
-      .then(setRecipeTypes)
-      .catch((loadError) => {
-        setError(loadError instanceof Error ? loadError.message : t("cannotLoadRecipeTypes"));
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
       });
-  }, [t]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoggedIn, params.id, token]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    let isMounted = true;
+
+    getRecipeTypes()
+      .then((types) => {
+        if (isMounted) {
+          setRecipeTypes(types);
+        }
+      })
+      .catch((loadError) => {
+        if (isMounted) {
+          setError(loadError instanceof Error ? loadError.message : t("cannotLoadRecipeTypes"));
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const canEdit = recipe && user && (user.isAdmin || recipe.createdBy === user.id);
 
@@ -79,18 +121,43 @@ export default function EditRecipePage() {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
+    const title = normalizeText(formData.get('title'));
+    const shortDescription = normalizeText(formData.get('shortDescription'));
+    const description = normalizeText(formData.get('description'));
+    const ingredients = parseList(formData.get('ingredients'), INGREDIENTS_SEPARATOR);
+    const steps = parseList(formData.get('steps'), STEPS_SEPARATOR);
+    const preparationTime = normalizeText(formData.get('preparationTime'));
+    const servings = normalizeText(formData.get('servings'));
+
+    if (!title || !shortDescription) {
+      setError(t('completeRequiredFields'));
+      setSubmitting(false);
+      return;
+    }
+
+    if (ingredients.length === 0) {
+      setError(t('addAtLeastOneIngredient'));
+      setSubmitting(false);
+      return;
+    }
+
+    if (steps.length === 0) {
+      setError(t('addAtLeastOneStep'));
+      setSubmitting(false);
+      return;
+    }
 
     try {
       await updateRecipe(
         params.id,
         {
-          title: String(formData.get("title")),
-          shortDescription: String(formData.get("shortDescription")),
-          description: String(formData.get("description")),
-          ingredients: String(formData.get("ingredients")).split(/[,\n]+/),
-          steps: String(formData.get("steps")).split(/\n+/),
-          preparationTime: String(formData.get("preparationTime")),
-          servings: String(formData.get("servings")),
+          title,
+          shortDescription,
+          ...(description ? { description } : {}),
+          ingredients,
+          steps,
+          ...(preparationTime ? { preparationTime } : {}),
+          ...(servings ? { servings } : {}),
           typeIds: selectedTypeIds,
           media: mediaItems.length > 0 ? mediaItems : undefined,
           links: linkItems.length > 0 ? linkItems : undefined,
@@ -276,7 +343,7 @@ export default function EditRecipePage() {
           </div>
           <div className={styles.field}>
             <label htmlFor="description">{t('detailedDescriptionLabel')}</label>
-            <textarea id="description" name="description" defaultValue={recipe.description} required />
+            <textarea id="description" name="description" defaultValue={recipe.description} />
           </div>
           <div className={styles.field}>
             <label htmlFor="ingredients">{t('ingredientsLabel')}</label>
@@ -288,11 +355,11 @@ export default function EditRecipePage() {
           </div>
           <div className={styles.field}>
             <label htmlFor="preparationTime">{t('preparationTimeLabel')}</label>
-            <input id="preparationTime" name="preparationTime" defaultValue={recipe.preparationTime} required />
+            <input id="preparationTime" name="preparationTime" defaultValue={recipe.preparationTime} />
           </div>
           <div className={styles.field}>
             <label htmlFor="servings">{t('servingsLabel')}</label>
-            <input id="servings" name="servings" defaultValue={recipe.servings} required />
+            <input id="servings" name="servings" defaultValue={recipe.servings} />
           </div>
 
           <div className={styles.field}>

@@ -9,10 +9,24 @@ import { createRecipe, createRecipeType, getRecipeTypes } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { RecipeType } from "../../lib/types";
 import { useTranslation } from "../../lib/useTranslation";
-import styles from "../page.module.scss";
+import styles from "./page.module.scss";
 
-type MediaItem = { type: 'image' | 'video' | 'pdf'; url: string };
+type MediaItem = { type: "image" | "video" | "pdf"; url: string };
 type LinkItem = { label: string; url: string };
+
+const INGREDIENTS_SEPARATOR = /[,\n]+/;
+const STEPS_SEPARATOR = /\n+/;
+
+function normalizeText(value: FormDataEntryValue | null) {
+  return String(value ?? "").trim();
+}
+
+function parseList(value: FormDataEntryValue | null, separator: RegExp) {
+  return normalizeText(value)
+    .split(separator)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
 
 export default function AddRecipePage() {
   const router = useRouter();
@@ -20,10 +34,11 @@ export default function AddRecipePage() {
   const { t } = useTranslation();
   const [error, setError] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [mediaUrl, setMediaUrl] = useState("");
-  const [mediaType, setMediaType] = useState<'image' | 'video' | 'pdf'>('image');
+  const [mediaType, setMediaType] = useState<"image" | "video" | "pdf">("image");
 
   const [linkItems, setLinkItems] = useState<LinkItem[]>([]);
   const [linkLabel, setLinkLabel] = useState("");
@@ -33,13 +48,26 @@ export default function AddRecipePage() {
   const [newTypeName, setNewTypeName] = useState("");
   const [newTypeColor, setNewTypeColor] = useState("#22C55E");
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    let isMounted = true;
+
     getRecipeTypes()
-      .then(setRecipeTypes)
+      .then((types) => {
+        if (isMounted) {
+          setRecipeTypes(types);
+        }
+      })
       .catch((loadError) => {
-        setError(loadError instanceof Error ? loadError.message : t("cannotLoadRecipeTypes"));
+        if (isMounted) {
+          setError(loadError instanceof Error ? loadError.message : t("cannotLoadRecipeTypes"));
+        }
       });
-  }, [t]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,24 +78,48 @@ export default function AddRecipePage() {
       return;
     }
 
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const title = normalizeText(formData.get("title"));
+    const shortDescription = normalizeText(formData.get("shortDescription"));
+    const description = normalizeText(formData.get("description"));
+    const ingredients = parseList(formData.get("ingredients"), INGREDIENTS_SEPARATOR);
+    const steps = parseList(formData.get("steps"), STEPS_SEPARATOR);
+    const preparationTime = normalizeText(formData.get("preparationTime"));
+    const servings = normalizeText(formData.get("servings"));
+
+    if (!title || !shortDescription) {
+      setError(t("completeRequiredFields"));
+      return;
+    }
+
+    if (ingredients.length === 0) {
+      setError(t("addAtLeastOneIngredient"));
+      return;
+    }
+
+    if (steps.length === 0) {
+      setError(t("addAtLeastOneStep"));
+      return;
+    }
+
     if (selectedTypeIds.length === 0) {
       setError(t("pickAtLeastOneType"));
       return;
     }
 
-    const form = event.currentTarget;
-    const formData = new FormData(form);
+    setIsSubmitting(true);
 
     try {
       await createRecipe(
         {
-          title: String(formData.get("title")),
-          shortDescription: String(formData.get("shortDescription")),
-          description: String(formData.get("description")),
-          ingredients: String(formData.get("ingredients")).split(/[,\n]+/),
-          steps: String(formData.get("steps")).split(/\n+/),
-          preparationTime: String(formData.get("preparationTime")),
-          servings: String(formData.get("servings")),
+          title,
+          shortDescription,
+          ...(description ? { description } : {}),
+          ingredients,
+          steps,
+          ...(preparationTime ? { preparationTime } : {}),
+          ...(servings ? { servings } : {}),
           typeIds: selectedTypeIds,
           media: mediaItems.length > 0 ? mediaItems : undefined,
           links: linkItems.length > 0 ? linkItems : undefined,
@@ -86,16 +138,22 @@ export default function AddRecipePage() {
       setError(
         createError instanceof Error ? createError.message : t("recipeNotSaved"),
       );
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   function addMedia() {
-    if (!mediaUrl.trim()) {
+    const nextUrl = mediaUrl.trim();
+
+    if (!nextUrl) {
       setError(t("enterMediaUrl"));
       return;
     }
-    setMediaItems([...mediaItems, { type: mediaType, url: mediaUrl }]);
+
+    setMediaItems((prev) => [...prev, { type: mediaType, url: nextUrl }]);
     setMediaUrl("");
+    setError("");
   }
 
   function detectMediaType(file: File): MediaItem["type"] | null {
@@ -162,13 +220,18 @@ export default function AddRecipePage() {
   }
 
   function addLink() {
-    if (!linkLabel.trim() || !linkUrl.trim()) {
+    const nextLabel = linkLabel.trim();
+    const nextUrl = linkUrl.trim();
+
+    if (!nextLabel || !nextUrl) {
       setError(t("enterLinkDetails"));
       return;
     }
-    setLinkItems([...linkItems, { label: linkLabel, url: linkUrl }]);
+
+    setLinkItems((prev) => [...prev, { label: nextLabel, url: nextUrl }]);
     setLinkLabel("");
     setLinkUrl("");
+    setError("");
   }
 
   function removeLink(index: number) {
@@ -180,10 +243,17 @@ export default function AddRecipePage() {
       return;
     }
 
+    const trimmedTypeName = newTypeName.trim();
+
+    if (!trimmedTypeName) {
+      setError(t("enterRecipeTypeName"));
+      return;
+    }
+
     try {
       const created = await createRecipeType(
         {
-          name: newTypeName,
+          name: trimmedTypeName,
           color: newTypeColor,
         },
         token,
@@ -192,6 +262,7 @@ export default function AddRecipePage() {
       setRecipeTypes((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
       setSelectedTypeIds((prev) => [...prev, created.id]);
       setNewTypeName("");
+      setError("");
     } catch (typeError) {
       setError(typeError instanceof Error ? typeError.message : t("cannotCreateRecipeType"));
     }
@@ -200,10 +271,10 @@ export default function AddRecipePage() {
   if (!isLoggedIn) {
     return (
       <main className={styles.page}>
-        <section className={styles.card}>
+        <section className={styles.loginCard}>
           <h1>{t("needLoginToAdd")}</h1>
-          <p className={styles.muted}>{t("loginAndAdd")}</p>
-          <div className={styles.actions}>
+          <p>{t("loginAndAdd")}</p>
+          <div className={styles.loginActions}>
             <Link href="/login">{t("login")}</Link>
           </div>
         </section>
@@ -223,181 +294,357 @@ export default function AddRecipePage() {
       ) : null}
 
       <main className={styles.page}>
-      <header className={styles.pageHeader}>
-        <div>
-          <h1>{t("addRecipeTitle")}</h1>
-          <p>{t("addRecipeDescription")}</p>
-        </div>
-      </header>
+        <form className={styles.formLayout} onSubmit={handleSubmit}>
+          <div className={styles.mainColumn}>
+            <section className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <div className={styles.sectionHeading}>
+                  <span className={styles.sectionEyebrow}>{t("requiredBadge")}</span>
+                  <h2 className={styles.sectionTitle}>{t("addRecipeTitle")}</h2>
+                </div>
+              </div>
 
-      <form className={styles.form} onSubmit={handleSubmit}>
-        <div className={styles.field}>
-          <label htmlFor="title">{t("recipeNameLabel")}</label>
-          <input id="title" name="title" required />
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="shortDescription">{t("shortDescriptionLabel")}</label>
-          <input id="shortDescription" name="shortDescription" required />
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="description">{t("detailedDescriptionLabel")}</label>
-          <textarea id="description" name="description" required />
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="ingredients">{t("ingredientsLabel")}</label>
-          <textarea id="ingredients" name="ingredients" required />
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="steps">{t("stepsLabel")}</label>
-          <textarea id="steps" name="steps" required />
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="preparationTime">{t("preparationTimeLabel")}</label>
-          <input id="preparationTime" name="preparationTime" placeholder={t("preparationTimePlaceholder")} required />
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="servings">{t("servingsLabel")}</label>
-          <input id="servings" name="servings" placeholder={t("servingsPlaceholder")} required />
-        </div>
+              <div className={styles.fieldGrid}>
+                <div className={styles.field}>
+                  <div className={styles.labelRow}>
+                    <label htmlFor="title">{t("recipeNameLabel")}</label>
+                    <span className={`${styles.fieldBadge} ${styles.fieldBadgeRequired}`}>{t("requiredBadge")}</span>
+                  </div>
+                  <input
+                    className={styles.input}
+                    id="title"
+                    name="title"
+                    placeholder={t("recipeTitlePlaceholder")}
+                    required
+                  />
+                </div>
 
-        <div className={styles.field}>
-          <label htmlFor="typeIds">{t("recipeTypesLabel")}</label>
-          <RecipeTypeMultiSelect
-            id="typeIds"
-            options={recipeTypes}
-            selectedIds={selectedTypeIds}
-            onChangeAction={setSelectedTypeIds}
-            placeholder={t("recipeTypePickerPlaceholder")}
-            selectedCountLabelAction={(count) => t("recipeTypePickerSelectedCount", { count })}
-            selectAllLabel={t("selectAllTypes")}
-            clearLabel={t("clearTypes")}
-            emptyLabel={t("noRecipeTypesAvailable")}
-          />
-          <p className={styles.hint}>{t("recipeTypesHint")}</p>
-        </div>
+                <div className={styles.field}>
+                  <div className={styles.labelRow}>
+                    <label htmlFor="shortDescription">{t("shortDescriptionLabel")}</label>
+                    <span className={`${styles.fieldBadge} ${styles.fieldBadgeRequired}`}>{t("requiredBadge")}</span>
+                  </div>
+                  <input
+                    className={styles.input}
+                    id="shortDescription"
+                    name="shortDescription"
+                    placeholder={t("recipeShortDescriptionPlaceholder")}
+                    required
+                  />
+                </div>
 
-        {user?.isAdmin ? (
-          <div className={styles.section}>
-            <h3>{t("addRecipeTypeTitle")}</h3>
-            <div className={styles.field}>
-              <label htmlFor="newTypeName">{t("recipeTypeNameLabel")}</label>
-              <input
-                id="newTypeName"
-                value={newTypeName}
-                onChange={(event) => setNewTypeName(event.target.value)}
-                placeholder={t("recipeTypeNamePlaceholder")}
-              />
-            </div>
-            <div className={styles.field}>
-              <label htmlFor="newTypeColor">{t("recipeTypeColorLabel")}</label>
-              <input
-                id="newTypeColor"
-                type="color"
-                value={newTypeColor}
-                onChange={(event) => setNewTypeColor(event.target.value.toUpperCase())}
-              />
-            </div>
-            <button type="button" className={styles.secondaryBtn} onClick={() => void handleCreateType()}>
-              {t("addRecipeTypeButton")}
-            </button>
-          </div>
-        ) : null}
+                <div className={styles.fieldFull}>
+                  <div className={styles.labelRow}>
+                    <label htmlFor="description">{t("detailedDescriptionLabel")}</label>
+                    <span className={`${styles.fieldBadge} ${styles.fieldBadgeOptional}`}>{t("optionalBadge")}</span>
+                  </div>
+                  <textarea
+                    className={`${styles.textarea} ${styles.textareaCompact}`}
+                    id="description"
+                    name="description"
+                    placeholder={t("recipeDescriptionPlaceholder")}
+                  />
+                </div>
+              </div>
+            </section>
 
-        <div className={styles.section}>
-          <h3>{t("mediaSection")}</h3>
-          <p className={styles.hint}>{t("mediaHint")}</p>
-          <div className={styles.field}>
-            <label htmlFor="mediaFiles">{t("uploadFilesLabel")}</label>
-            <input
-              id="mediaFiles"
-              type="file"
-              accept="image/*,video/*,application/pdf"
-              multiple
-              onChange={handleLocalMediaUpload}
-            />
+            <section className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <div className={styles.sectionHeading}>
+                  <span className={styles.sectionEyebrow}>{t("requiredBadge")}</span>
+                  <h2 className={styles.sectionTitle}>{t("addRecipeWorkflowTitle")}</h2>
+                </div>
+              </div>
+
+              <div className={styles.fieldGrid}>
+                <div className={styles.fieldFull}>
+                  <div className={styles.labelRow}>
+                    <label htmlFor="ingredients">{t("ingredientsLabel")}</label>
+                    <span className={`${styles.fieldBadge} ${styles.fieldBadgeRequired}`}>{t("requiredBadge")}</span>
+                  </div>
+                  <textarea
+                    className={styles.textarea}
+                    id="ingredients"
+                    name="ingredients"
+                    placeholder={t("ingredientsPlaceholder")}
+                    required
+                  />
+                </div>
+
+                <div className={styles.fieldFull}>
+                  <div className={styles.labelRow}>
+                    <label htmlFor="steps">{t("stepsLabel")}</label>
+                    <span className={`${styles.fieldBadge} ${styles.fieldBadgeRequired}`}>{t("requiredBadge")}</span>
+                  </div>
+                  <textarea
+                    className={styles.textarea}
+                    id="steps"
+                    name="steps"
+                    placeholder={t("stepsPlaceholder")}
+                    required
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <div className={styles.sectionHeading}>
+                  <span className={styles.sectionEyebrow}>{t("optionalBadge")}</span>
+                  <h2 className={styles.sectionTitle}>{t("addRecipeOptionalDetailsTitle")}</h2>
+                </div>
+              </div>
+
+              <div className={styles.fieldGrid}>
+                <div className={styles.field}>
+                  <div className={styles.labelRow}>
+                    <label htmlFor="preparationTime">{t("preparationTimeLabel")}</label>
+                    <span className={`${styles.fieldBadge} ${styles.fieldBadgeOptional}`}>{t("optionalBadge")}</span>
+                  </div>
+                  <input
+                    className={styles.input}
+                    id="preparationTime"
+                    name="preparationTime"
+                    placeholder={t("preparationTimePlaceholder")}
+                  />
+                </div>
+
+                <div className={styles.field}>
+                  <div className={styles.labelRow}>
+                    <label htmlFor="servings">{t("servingsLabel")}</label>
+                    <span className={`${styles.fieldBadge} ${styles.fieldBadgeOptional}`}>{t("optionalBadge")}</span>
+                  </div>
+                  <input
+                    className={styles.input}
+                    id="servings"
+                    name="servings"
+                    placeholder={t("servingsPlaceholder")}
+                  />
+                </div>
+              </div>
+            </section>
           </div>
-          <div className={styles.field}>
-            <label>{t("mediaTypeLabel")}</label>
-            <select value={mediaType} onChange={(e) => setMediaType(e.target.value as 'image' | 'video' | 'pdf')}>
-              <option value="image">{t("image")}</option>
-              <option value="video">{t("video")}</option>
-              <option value="pdf">{t("pdf")}</option>
-            </select>
-          </div>
-          <div className={styles.field}>
-            <label>{t("mediaUrlLabel")}</label>
-            <input
-              value={mediaUrl}
-              onChange={(e) => setMediaUrl(e.target.value)}
-              placeholder={
-                mediaType === "image"
-                  ? "https://..."
-                  : mediaType === "video"
-                    ? t("videoUrlPlaceholder")
-                    : "https://...pdf"
-              }
-            />
-          </div>
-          <button type="button" className={styles.secondaryBtn} onClick={addMedia}>
-            {t("addMediaButton")}
-          </button>
-          {mediaItems.length > 0 && (
-            <div className={styles.itemsList}>
-              {mediaItems.map((item, idx) => (
-                <div key={idx} className={styles.listItem}>
-                  <span>
-                    {item.type === 'image' ? '🖼' : item.type === 'video' ? '🎬' : '📄'} {item.url.slice(0, 90)}
-                    {item.url.length > 90 ? "..." : ""}
-                  </span>
-                  <button type="button" className={styles.removeBtn} onClick={() => removeMedia(idx)}>
-                    ✕
+
+          <div className={styles.sideColumn}>
+            <section className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <div className={styles.sectionHeading}>
+                  <span className={styles.sectionEyebrow}>{t("requiredBadge")}</span>
+                  <h2 className={styles.sectionTitle}>{t("recipeTypesLabel")}</h2>
+                  <p className={styles.sectionText}>{t("recipeTypeSectionDescription")}</p>
+                </div>
+              </div>
+
+              <div className={styles.field}>
+                <RecipeTypeMultiSelect
+                  id="typeIds"
+                  options={recipeTypes}
+                  selectedIds={selectedTypeIds}
+                  onChangeAction={setSelectedTypeIds}
+                  placeholder={t("recipeTypePickerPlaceholder")}
+                  selectedCountLabelAction={(count) => t("recipeTypePickerSelectedCount", { count })}
+                  selectAllLabel={t("selectAllTypes")}
+                  clearLabel={t("clearTypes")}
+                  emptyLabel={t("noRecipeTypesAvailable")}
+                />
+                <p className={styles.helper}>{t("recipeTypesHint")}</p>
+              </div>
+            </section>
+
+            {user?.isAdmin ? (
+              <section className={styles.sectionCard}>
+                <div className={styles.sectionHeader}>
+                  <div className={styles.sectionHeading}>
+                    <span className={styles.sectionEyebrow}>{t("optionalBadge")}</span>
+                    <h2 className={styles.sectionTitle}>{t("addRecipeTypeTitle")}</h2>
+                    <p className={styles.sectionText}>{t("recipeTypesAdminDescription")}</p>
+                  </div>
+                </div>
+
+                <div className={styles.fieldGrid}>
+                  <div className={styles.fieldFull}>
+                    <label className={styles.simpleLabel} htmlFor="newTypeName">{t("recipeTypeNameLabel")}</label>
+                    <input
+                      className={styles.input}
+                      id="newTypeName"
+                      value={newTypeName}
+                      onChange={(event) => setNewTypeName(event.target.value)}
+                      placeholder={t("recipeTypeNamePlaceholder")}
+                    />
+                  </div>
+                  <div className={styles.fieldFull}>
+                    <label className={styles.simpleLabel} htmlFor="newTypeColor">{t("recipeTypeColorLabel")}</label>
+                    <input
+                      className={styles.colorField}
+                      id="newTypeColor"
+                      type="color"
+                      value={newTypeColor}
+                      onChange={(event) => setNewTypeColor(event.target.value.toUpperCase())}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.buttonRow}>
+                  <button type="button" className={styles.secondaryButton} onClick={() => void handleCreateType()}>
+                    {t("addRecipeTypeButton")}
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </section>
+            ) : null}
 
-        <div className={styles.section}>
-          <h3>{t("linksSection")}</h3>
-          <p className={styles.hint}>{t("linksHint")}</p>
-          <div className={styles.field}>
-            <label>{t("linkLabelField")}</label>
-            <input
-              value={linkLabel}
-              onChange={(e) => setLinkLabel(e.target.value)}
-              placeholder={t("linkLabelPlaceholder")}
-            />
-          </div>
-          <div className={styles.field}>
-            <label>{t("linkUrlField")}</label>
-            <input
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              placeholder="https://..."
-            />
-          </div>
-          <button type="button" className={styles.secondaryBtn} onClick={addLink}>
-            {t("addLinkButton")}
-          </button>
-          {linkItems.length > 0 && (
-            <div className={styles.itemsList}>
-              {linkItems.map((item, idx) => (
-                <div key={idx} className={styles.listItem}>
-                  <span>🔗 {item.label}: {item.url}</span>
-                  <button type="button" className={styles.removeBtn} onClick={() => removeLink(idx)}>
-                    ✕
-                  </button>
+            <section className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <div className={styles.sectionHeading}>
+                  <span className={styles.sectionEyebrow}>{t("optionalBadge")}</span>
+                  <h2 className={styles.sectionTitle}>{t("mediaSection")}</h2>
+                  <p className={styles.sectionText}>{t("mediaHint")}</p>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
 
-        {error ? <p className={styles.error}>{error}</p> : null}
-        <button className={styles.button}>{t("saveRecipeButton")}</button>
-      </form>
-    </main>
+              <div className={styles.fieldGrid}>
+                <div className={styles.fieldFull}>
+                  <label className={styles.simpleLabel} htmlFor="mediaFiles">{t("uploadFilesLabel")}</label>
+                  <input
+                    className={styles.fileInput}
+                    id="mediaFiles"
+                    type="file"
+                    accept="image/*,video/*,application/pdf"
+                    multiple
+                    onChange={handleLocalMediaUpload}
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.simpleLabel} htmlFor="mediaType">{t("mediaTypeLabel")}</label>
+                  <select
+                    className={styles.select}
+                    id="mediaType"
+                    value={mediaType}
+                    onChange={(event) => setMediaType(event.target.value as MediaItem["type"])}
+                  >
+                    <option value="image">{t("image")}</option>
+                    <option value="video">{t("video")}</option>
+                    <option value="pdf">{t("pdf")}</option>
+                  </select>
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.simpleLabel} htmlFor="mediaUrl">{t("mediaUrlLabel")}</label>
+                  <input
+                    className={styles.input}
+                    id="mediaUrl"
+                    value={mediaUrl}
+                    onChange={(event) => setMediaUrl(event.target.value)}
+                    placeholder={
+                      mediaType === "image"
+                        ? "https://..."
+                        : mediaType === "video"
+                          ? t("videoUrlPlaceholder")
+                          : "https://...pdf"
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className={styles.buttonRow}>
+                <button type="button" className={styles.secondaryButton} onClick={addMedia}>
+                  {t("addMediaButton")}
+                </button>
+              </div>
+
+              {mediaItems.length > 0 ? (
+                <div className={styles.itemsList}>
+                  {mediaItems.map((item, idx) => (
+                    <div key={`${item.url}-${idx}`} className={styles.listItem}>
+                      <div className={styles.itemContent}>
+                        <span className={styles.itemTitle}>
+                          {item.type === "image" ? "🖼" : item.type === "video" ? "🎬" : "📄"} {t(item.type)}
+                        </span>
+                        <span className={styles.itemSubtitle}>
+                          {item.url.length > 110 ? `${item.url.slice(0, 110)}...` : item.url}
+                        </span>
+                      </div>
+                      <button type="button" className={styles.removeButton} onClick={() => removeMedia(idx)}>
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+
+            <section className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <div className={styles.sectionHeading}>
+                  <span className={styles.sectionEyebrow}>{t("optionalBadge")}</span>
+                  <h2 className={styles.sectionTitle}>{t("linksSection")}</h2>
+                  <p className={styles.sectionText}>{t("linksHint")}</p>
+                </div>
+              </div>
+
+              <div className={styles.fieldGrid}>
+                <div className={styles.fieldFull}>
+                  <label className={styles.simpleLabel} htmlFor="linkLabel">{t("linkLabelField")}</label>
+                  <input
+                    className={styles.input}
+                    id="linkLabel"
+                    value={linkLabel}
+                    onChange={(event) => setLinkLabel(event.target.value)}
+                    placeholder={t("linkLabelPlaceholder")}
+                  />
+                </div>
+                <div className={styles.fieldFull}>
+                  <label className={styles.simpleLabel} htmlFor="linkUrl">{t("linkUrlField")}</label>
+                  <input
+                    className={styles.input}
+                    id="linkUrl"
+                    value={linkUrl}
+                    onChange={(event) => setLinkUrl(event.target.value)}
+                    placeholder="https://..."
+                  />
+                </div>
+              </div>
+
+              <div className={styles.buttonRow}>
+                <button type="button" className={styles.secondaryButton} onClick={addLink}>
+                  {t("addLinkButton")}
+                </button>
+              </div>
+
+              {linkItems.length > 0 ? (
+                <div className={styles.itemsList}>
+                  {linkItems.map((item, idx) => (
+                    <div key={`${item.url}-${idx}`} className={styles.listItem}>
+                      <div className={styles.itemContent}>
+                        <span className={styles.itemTitle}>🔗 {item.label}</span>
+                        <span className={styles.itemSubtitle}>{item.url}</span>
+                      </div>
+                      <button type="button" className={styles.removeButton} onClick={() => removeLink(idx)}>
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+
+            <section className={styles.submitCard}>
+              <span className={styles.cardEyebrow}>{t("addRecipeReviewEyebrow")}</span>
+              <h2 className={styles.submitTitle}>{t("addRecipeReviewTitle")}</h2>
+              <p className={styles.submitText}>{t("saveRecipeHint")}</p>
+              <div className={styles.submitMeta}>
+                <span className={styles.submitChip}>{t("requiredBadge")}</span>
+                <span className={styles.submitChip}>{t("recipeTypesLabel")}</span>
+                <span className={styles.submitChip}>{t("optionalBadge")}</span>
+              </div>
+              {error ? <p className={styles.error} aria-live="polite">{error}</p> : null}
+              <div className={styles.submitActions}>
+                <button className={styles.primaryButton} disabled={isSubmitting}>
+                  {isSubmitting ? t("savingRecipe") : t("saveRecipeButton")}
+                </button>
+              </div>
+            </section>
+          </div>
+        </form>
+      </main>
     </>
   );
 }

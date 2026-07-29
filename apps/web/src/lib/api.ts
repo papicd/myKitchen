@@ -181,11 +181,11 @@ export function createRecipe(
   body: {
     title: string;
     shortDescription: string;
-    description: string;
+    description?: string;
     ingredients: string[];
     steps: string[];
-    preparationTime: string;
-    servings: string;
+    preparationTime?: string;
+    servings?: string;
     typeIds: string[];
     media?: Array<{ type: 'image' | 'video' | 'pdf'; url: string }>;
     links?: Array<{ label: string; url: string }>;
@@ -204,11 +204,11 @@ export function updateRecipe(
   body: {
     title: string;
     shortDescription: string;
-    description: string;
+    description?: string;
     ingredients: string[];
     steps: string[];
-    preparationTime: string;
-    servings: string;
+    preparationTime?: string;
+    servings?: string;
     typeIds: string[];
     media?: Array<{ type: 'image' | 'video' | 'pdf'; url: string }>;
     links?: Array<{ label: string; url: string }>;

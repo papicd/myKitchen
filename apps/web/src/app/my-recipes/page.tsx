@@ -158,10 +158,12 @@ export default function MyRecipesPage() {
                   {recipe.postedByRecommendedUser ? (
                     <p className={styles.recommendedLabel}>{t("recommendedAuthor")}</p>
                   ) : null}
-                  <div className={styles.meta}>
-                    <span>{recipe.preparationTime}</span>
-                    <span>{recipe.servings}</span>
-                  </div>
+                  {recipe.preparationTime || recipe.servings ? (
+                    <div className={styles.meta}>
+                      {recipe.preparationTime ? <span>{recipe.preparationTime}</span> : null}
+                      {recipe.servings ? <span>{recipe.servings}</span> : null}
+                    </div>
+                  ) : null}
                   <div className={styles.cardRating}>
                     <StarRating
                       averageRating={recipe.averageRating}
