@@ -4,21 +4,21 @@ import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { resetPassword } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 import { useTranslation } from "../../lib/useTranslation";
 import styles from "../page.module.scss";
 
 export default function ResetPasswordPage() {
+  const { showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token")?.trim() ?? "", [searchParams]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    setSuccess("");
 
     if (!token) {
       setError(t("missingResetToken"));
@@ -38,14 +38,10 @@ export default function ResetPasswordPage() {
 
     try {
       await resetPassword(token, newPassword);
-      setSuccess(t("resetPasswordSuccess"));
+      showSuccess(t("resetPasswordSuccess"));
       (event.currentTarget as HTMLFormElement).reset();
     } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : t("resetPasswordRequestFailed"),
-      );
+      showApiError(submitError, t("resetPasswordRequestFailed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -79,7 +75,6 @@ export default function ResetPasswordPage() {
         </div>
 
         {error ? <p className={styles.error}>{error}</p> : null}
-        {success ? <p className={styles.success}>{success}</p> : null}
 
         <button className={styles.button} disabled={isSubmitting || !token}>
           {isSubmitting ? t("saving") : t("resetPasswordButton")}

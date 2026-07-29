@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { signup } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -9,13 +9,11 @@ import styles from "../page.module.scss";
 
 export default function SignupPage() {
   const router = useRouter();
-  const { saveAuth } = useAuth();
+  const { saveAuth, showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
-  const [error, setError] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
 
     const formData = new FormData(event.currentTarget);
 
@@ -28,13 +26,10 @@ export default function SignupPage() {
         password: String(formData.get("password")),
       });
       saveAuth(auth);
+      showSuccess(t("accountCreated"));
       router.push("/");
     } catch (signupError) {
-      setError(
-        signupError instanceof Error
-          ? signupError.message
-            : t("registrationFailed"),
-      );
+      showApiError(signupError, t("registrationFailed"));
     }
   }
 
@@ -68,7 +63,6 @@ export default function SignupPage() {
           <label htmlFor="password">{t("password")}</label>
           <input id="password" name="password" required type="password" />
         </div>
-        {error ? <p className={styles.error}>{error}</p> : null}
         <button className={styles.button}>{t("registerButton")}</button>
       </form>
     </main>

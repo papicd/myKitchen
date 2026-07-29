@@ -57,7 +57,7 @@ function formatCommentDate(value: string, locale: "en" | "sr") {
 export default function RecipeDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, token, isLoggedIn } = useAuth();
+  const { user, token, isLoggedIn, showApiError, showSuccess } = useAuth();
   const { t, language } = useTranslation();
   const [recipe, setRecipe] = useState<RecipeDetails | null>(null);
   const [error, setError] = useState("");
@@ -76,14 +76,15 @@ export default function RecipeDetailsPage() {
 
     getRecipe(params.id, token)
       .then(setRecipe)
-      .catch((detailsError) =>
+      .catch((detailsError) => {
         setError(
           detailsError instanceof Error
             ? detailsError.message
             : t("cannotLoadRecipe"),
-        ),
-      );
-  }, [isLoggedIn, params.id, token, t]);
+        );
+        showApiError(detailsError, t("cannotLoadRecipe"));
+      });
+  }, [isLoggedIn, params.id, showApiError, token, t]);
 
   useEffect(() => {
     if (!token || !isLoggedIn) {
@@ -101,10 +102,11 @@ export default function RecipeDetailsPage() {
     setDeleting(true);
     try {
       await deleteRecipe(params.id, token);
+      showSuccess(t("recipeDeletedSuccess"));
       router.push("/recipes");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("deleteError"));
       setShowConfirm(false);
+      showApiError(err, t("deleteError"));
     } finally {
       setDeleting(false);
     }
@@ -121,8 +123,9 @@ export default function RecipeDetailsPage() {
     try {
       const updatedRecipe = await rateRecipe(params.id, value, token);
       setRecipe(updatedRecipe);
+      showSuccess(t("ratingSavedSuccess"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("ratingError"));
+      showApiError(err, t("ratingError"));
     } finally {
       setRatingLoading(false);
     }
@@ -138,8 +141,9 @@ export default function RecipeDetailsPage() {
     try {
       const result = await toggleSaveRecipe(params.id, token);
       setIsSaved(result.saved);
+      showSuccess(t(result.saved ? "recipeSavedToCollection" : "recipeRemovedFromCollection"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("saveFailed"));
+      showApiError(err, t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -159,8 +163,9 @@ export default function RecipeDetailsPage() {
       const updatedRecipe = await addRecipeComment(params.id, commentText, token);
       setRecipe(updatedRecipe);
       setCommentText("");
+      showSuccess(t("commentPublishedSuccess"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("commentError"));
+      showApiError(err, t("commentError"));
     } finally {
       setCommentLoading(false);
     }

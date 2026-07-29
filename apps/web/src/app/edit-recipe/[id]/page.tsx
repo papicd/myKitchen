@@ -32,13 +32,13 @@ function parseList(value: FormDataEntryValue | null, separator: RegExp) {
 export default function EditRecipePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, token, isLoggedIn } = useAuth();
+  const { user, token, isLoggedIn, showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
   const [recipe, setRecipe] = useState<RecipeDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [mediaUrl, setMediaUrl] = useState("");
@@ -52,7 +52,6 @@ export default function EditRecipePage() {
   const [newTypeName, setNewTypeName] = useState("");
   const [newTypeColor, setNewTypeColor] = useState("#22C55E");
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isLoggedIn || !token) return;
 
@@ -70,6 +69,7 @@ export default function EditRecipePage() {
       .catch((err) => {
         if (isMounted) {
           setError(err instanceof Error ? err.message : t("cannotLoadRecipe"));
+          showApiError(err, t("cannotLoadRecipe"));
         }
       })
       .finally(() => {
@@ -81,9 +81,8 @@ export default function EditRecipePage() {
     return () => {
       isMounted = false;
     };
-  }, [isLoggedIn, params.id, token]);
+  }, [isLoggedIn, params.id, showApiError, t, token]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     let isMounted = true;
 
@@ -96,13 +95,14 @@ export default function EditRecipePage() {
       .catch((loadError) => {
         if (isMounted) {
           setError(loadError instanceof Error ? loadError.message : t("cannotLoadRecipeTypes"));
+          showApiError(loadError, t("cannotLoadRecipeTypes"));
         }
       });
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [showApiError, t]);
 
   const canEdit = recipe && user && (user.isAdmin || recipe.createdBy === user.id);
 
@@ -164,9 +164,10 @@ export default function EditRecipePage() {
         },
         token,
       );
-      setShowSuccess(true);
+      showSuccess(t("recipeUpdated"));
+      setShowSuccessDialog(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("updateFailed"));
+      showApiError(err, t("updateFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -274,8 +275,9 @@ export default function EditRecipePage() {
       setRecipeTypes((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
       setSelectedTypeIds((prev) => [...prev, created.id]);
       setNewTypeName("");
+      showSuccess(t("recipeTypeCreated"));
     } catch (typeError) {
-      setError(typeError instanceof Error ? typeError.message : t("cannotCreateRecipeType"));
+      showApiError(typeError, t("cannotCreateRecipeType"));
     }
   }
 
@@ -315,7 +317,7 @@ export default function EditRecipePage() {
 
   return (
     <>
-      {showSuccess ? (
+      {showSuccessDialog ? (
         <SuccessDialog
           title={t('recipeUpdated')}
           description={t('changesUpdated')}

@@ -9,10 +9,48 @@ import {
   useMemo,
   useState,
 } from "react";
+import { ErrorDialog } from "../components/ErrorDialog";
 import { Toast } from "../components/Toast";
 import en from "../translations/en.json";
 import sr from "../translations/sr.json";
+import { ApiError } from "./api";
 import { AuthResponse, User } from "./types";
+
+type ToastState = {
+  title: string;
+  message: string;
+  variant?: "info" | "success" | "error";
+};
+
+type ErrorDialogState = {
+  title: string;
+  description: string;
+  actionLabel?: string;
+};
+
+function resolveFriendlyApiMessage(
+  error: unknown,
+  fallbackMessage: string,
+  t: (key: string) => string,
+) {
+  if (error instanceof ApiError) {
+    if (error.status === 0) {
+      return t("networkErrorFriendly");
+    }
+
+    if (error.status >= 500) {
+      return t("serverErrorFriendly");
+    }
+
+    return error.message || fallbackMessage;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallbackMessage;
+}
 
 type AuthContextValue = {
   user: User | null;
@@ -23,6 +61,10 @@ type AuthContextValue = {
   saveAuth: (auth: AuthResponse) => void;
   logout: () => void;
   logoutOnExpiry: () => void;
+  showToast: (toast: ToastState) => void;
+  showSuccess: (message: string, title?: string) => void;
+  showApiError: (error: unknown, fallbackMessage?: string) => void;
+  closeErrorDialog: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -39,12 +81,13 @@ function isJwtExpired(jwt: string) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const [errorDialog, setErrorDialog] = useState<ErrorDialogState | null>(null);
   const [language, setLanguageState] = useState<'en' | 'sr'>('sr');
 
   const dictionary = language === "en" ? en : sr;
   const t = useCallback(
-    (key: keyof typeof sr) => dictionary[key] ?? String(key),
+    (key: string) => dictionary[key as keyof typeof sr] ?? String(key),
     [dictionary],
   );
 
@@ -57,8 +100,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutOnExpiry = useCallback((message = t("reAuthRequired")) => {
     logout();
-    setToastMessage(message);
+    setToast({ title: t("tokenExpired"), message, variant: "error" });
   }, [logout, t]);
+
+  const showToast = useCallback((nextToast: ToastState) => {
+    setToast(nextToast);
+  }, []);
+
+  const showSuccess = useCallback(
+    (message: string, title = t("success")) => {
+      setToast({ title, message, variant: "success" });
+    },
+    [t],
+  );
+
+  const showApiError = useCallback(
+    (error: unknown, fallbackMessage = t("requestFailed")) => {
+      const message = resolveFriendlyApiMessage(error, fallbackMessage, t);
+
+      setToast({
+        title: t("requestFailed"),
+        message,
+        variant: "error",
+      });
+      setErrorDialog({
+        title: t("somethingWentWrongTitle"),
+        description: message,
+        actionLabel: language === "en" ? "Close" : "Zatvori",
+      });
+    },
+    [language, t],
+  );
+
+  const closeErrorDialog = useCallback(() => {
+    setErrorDialog(null);
+  }, []);
 
   const setLanguage = useCallback((lang: 'en' | 'sr') => {
     setLanguageState(lang);
@@ -97,13 +173,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [logoutOnExpiry]);
 
   useEffect(() => {
-    if (!toastMessage) {
+    if (!toast) {
       return;
     }
 
-    const timeout = window.setTimeout(() => setToastMessage(null), 3500);
+    const timeout = window.setTimeout(() => setToast(null), 3500);
     return () => window.clearTimeout(timeout);
-  }, [toastMessage]);
+  }, [toast]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -120,16 +196,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       logout,
       logoutOnExpiry: () => logoutOnExpiry(),
+      showToast,
+      showSuccess,
+      showApiError,
+      closeErrorDialog,
     }),
-    [logout, logoutOnExpiry, user, token, language, setLanguage],
+    [closeErrorDialog, logout, logoutOnExpiry, showApiError, showSuccess, showToast, user, token, language, setLanguage],
   );
 
   return (
     <AuthContext.Provider value={value}>
       {children}
-      {toastMessage ? (
-        <Toast title={t("tokenExpired")} message={toastMessage} />
-      ) : null}
+        {toast ? (
+          <Toast title={toast.title} message={toast.message} variant={toast.variant} />
+        ) : null}
+        {errorDialog ? (
+          <ErrorDialog
+            title={errorDialog.title}
+            description={errorDialog.description}
+            actionLabel={errorDialog.actionLabel}
+            onAction={closeErrorDialog}
+          />
+        ) : null}
     </AuthContext.Provider>
   );
 }

@@ -14,7 +14,7 @@ import styles from "../../page.module.scss";
 
 export default function UserProfilePage() {
   const params = useParams<{ id: string }>();
-  const { token, isLoggedIn } = useAuth();
+  const { token, isLoggedIn, showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
   const [profile, setProfile] = useState<AdminUser | null>(null);
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
@@ -29,9 +29,12 @@ export default function UserProfilePage() {
         setProfile(userData);
         setRecipes(recipeData);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : t("cannotLoadProfile")))
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : t("cannotLoadProfile"));
+        showApiError(err, t("cannotLoadProfile"));
+      })
       .finally(() => setLoading(false));
-  }, [params.id, t]);
+  }, [params.id, showApiError, t]);
 
   useEffect(() => {
     if (!token || !isLoggedIn) {
@@ -57,6 +60,9 @@ export default function UserProfilePage() {
         if (!result.saved && hasRecipe) return prev.filter((id) => id !== recipeId);
         return prev;
       });
+      showSuccess(t(result.saved ? "recipeSavedToCollection" : "recipeRemovedFromCollection"));
+    } catch (err) {
+      showApiError(err, t("saveFailed"));
     } finally {
       setSavingId(null);
     }

@@ -19,7 +19,7 @@ import styles from "../page.module.scss";
 type Tab = "saved" | "rated";
 
 export default function MyRecipesPage() {
-  const { token, isLoggedIn } = useAuth();
+  const { token, isLoggedIn, showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("saved");
   const [savedRecipes, setSavedRecipes] = useState<RecipeListItem[]>([]);
@@ -40,9 +40,12 @@ export default function MyRecipesPage() {
         setSavedRecipes(saved);
         setRatedRecipes(rated);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : t("cannotLoadRecipe")))
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : t("cannotLoadRecipe"));
+        showApiError(err, t("cannotLoadRecipe"));
+      })
       .finally(() => setLoading(false));
-  }, [isLoggedIn, token, t]);
+  }, [isLoggedIn, showApiError, token, t]);
 
   const savedIds = useMemo(() => savedRecipes.map((recipe) => recipe.id), [savedRecipes]);
 
@@ -60,8 +63,9 @@ export default function MyRecipesPage() {
         const refreshed = await getSavedRecipes(token);
         setSavedRecipes(refreshed);
       }
+      showSuccess(t(result.saved ? "recipeSavedToCollection" : "recipeRemovedFromCollection"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("saveFailed"));
+      showApiError(err, t("saveFailed"));
     } finally {
       setBusySaveId(null);
     }
@@ -87,8 +91,9 @@ export default function MyRecipesPage() {
             : recipe,
         ),
       );
+      showSuccess(t("ratingSavedSuccess"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("ratingNotSaved"));
+      showApiError(err, t("ratingNotSaved"));
     } finally {
       setBusyRateId(null);
     }

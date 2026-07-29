@@ -10,10 +10,9 @@ import { RecipeListItem, RecipeType } from "../../lib/types";
 import styles from "../page.module.scss";
 
 export default function FindPage() {
-  const { token, isLoggedIn } = useAuth();
+  const { token, isLoggedIn, showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
-  const [error, setError] = useState("");
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [recipeTypes, setRecipeTypes] = useState<RecipeType[]>([]);
@@ -29,10 +28,8 @@ export default function FindPage() {
   }, []);
 
   async function runSearch(query: string, typeIds: string[] = selectedTypeIds) {
-    setError("");
-
     if (!token) {
-      setError(t("mustBeLogged"));
+      showApiError(new Error(t("mustBeLogged")), t("mustBeLogged"));
       return;
     }
 
@@ -42,11 +39,7 @@ export default function FindPage() {
       const savedRecipes = await getSavedRecipes(token);
       setSavedIds(savedRecipes.map((recipe) => recipe.id));
     } catch (searchError) {
-      setError(
-        searchError instanceof Error
-          ? searchError.message
-          : t("searchFailed"),
-      );
+      showApiError(searchError, t("searchFailed"));
     }
   }
 
@@ -77,6 +70,9 @@ export default function FindPage() {
 
         return prev;
       });
+      showSuccess(t(result.saved ? "recipeSavedToCollection" : "recipeRemovedFromCollection"));
+    } catch (err) {
+      showApiError(err, t("saveFailed"));
     } finally {
       setSavingId(null);
     }
@@ -169,8 +165,6 @@ export default function FindPage() {
         </div>
         <button className={styles.button}>{t("searchButton")}</button>
       </form>
-
-      {error ? <p className={styles.error}>{error}</p> : null}
 
       <section className={styles.grid}>
         {recipes.map((recipe) => (

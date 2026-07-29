@@ -30,10 +30,10 @@ function parseList(value: FormDataEntryValue | null, separator: RegExp) {
 
 export default function AddRecipePage() {
   const router = useRouter();
-  const { user, token, isLoggedIn } = useAuth();
+  const { user, token, isLoggedIn, showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
   const [error, setError] = useState("");
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
@@ -48,7 +48,6 @@ export default function AddRecipePage() {
   const [newTypeName, setNewTypeName] = useState("");
   const [newTypeColor, setNewTypeColor] = useState("#22C55E");
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     let isMounted = true;
 
@@ -61,13 +60,14 @@ export default function AddRecipePage() {
       .catch((loadError) => {
         if (isMounted) {
           setError(loadError instanceof Error ? loadError.message : t("cannotLoadRecipeTypes"));
+          showApiError(loadError, t("cannotLoadRecipeTypes"));
         }
       });
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [showApiError, t]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -133,11 +133,10 @@ export default function AddRecipePage() {
       setLinkLabel("");
       setLinkUrl("");
       setSelectedTypeIds([]);
-      setShowSuccess(true);
+      showSuccess(t("recipeSaved"));
+      setShowSuccessDialog(true);
     } catch (createError) {
-      setError(
-        createError instanceof Error ? createError.message : t("recipeNotSaved"),
-      );
+      showApiError(createError, t("recipeNotSaved"));
     } finally {
       setIsSubmitting(false);
     }
@@ -263,8 +262,9 @@ export default function AddRecipePage() {
       setSelectedTypeIds((prev) => [...prev, created.id]);
       setNewTypeName("");
       setError("");
+      showSuccess(t("recipeTypeCreated"));
     } catch (typeError) {
-      setError(typeError instanceof Error ? typeError.message : t("cannotCreateRecipeType"));
+      showApiError(typeError, t("cannotCreateRecipeType"));
     }
   }
 
@@ -284,7 +284,7 @@ export default function AddRecipePage() {
 
   return (
     <>
-      {showSuccess ? (
+      {showSuccessDialog ? (
         <SuccessDialog
           title={t("recipeSaved")}
           description={t("recipeAddedSuccess")}
