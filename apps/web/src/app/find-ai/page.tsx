@@ -31,18 +31,16 @@ const PROVIDERS: {
 ];
 
 export default function FindAiPage() {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, showApiError } = useAuth();
   const { t } = useTranslation();
   const [provider, setProvider] = useState<Provider>("openai");
   const [openAiApiKey, setOpenAiApiKey] = useState("");
   const [response, setResponse] = useState("");
   const [usedProvider, setUsedProvider] = useState<Provider>("openai");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError("");
     setResponse("");
     setLoading(true);
 
@@ -61,12 +59,15 @@ export default function FindAiPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? t("aiError"));
+      if (!res.ok) {
+        showApiError(new Error(data.error ?? t("aiError")), t("aiError"));
+        return;
+      }
 
       setUsedProvider(provider);
       setResponse(data.response);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("aiError"));
+      showApiError(err, t("aiError"));
     } finally {
       setLoading(false);
     }
@@ -155,8 +156,6 @@ export default function FindAiPage() {
           {loading ? t("aiThinking") : t("askProvider", { provider: activeProviderInfo.name })}
         </button>
       </form>
-
-      {error ? <p className={sharedStyles.error}>{error}</p> : null}
 
       {response ? (
         <div className={styles.responseBox}>

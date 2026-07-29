@@ -15,7 +15,7 @@ const USERS_PAGE_SIZE = 10;
 type AdminTab = "users" | "types";
 
 export default function AdminUsersPage() {
-  const { user, token, isLoggedIn } = useAuth();
+  const { user, token, isLoggedIn, showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<AdminTab>("users");
 
@@ -33,7 +33,6 @@ export default function AdminUsersPage() {
   const [recipeTypes, setRecipeTypes] = useState<RecipeType[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(false);
   const [typesError, setTypesError] = useState("");
-  const [typeMessage, setTypeMessage] = useState("");
   const [creatingType, setCreatingType] = useState(false);
   const [newTypeName, setNewTypeName] = useState("");
   const [newTypeColor, setNewTypeColor] = useState("#22C55E");
@@ -54,9 +53,12 @@ export default function AdminUsersPage() {
         setUserPage(response.page);
         setUserTotalPages(response.totalPages);
       })
-      .catch((err) => setUsersError(err instanceof Error ? err.message : t("cannotLoadUsers")))
+      .catch((err) => {
+        setUsersError(err instanceof Error ? err.message : t("cannotLoadUsers"));
+        showApiError(err, t("cannotLoadUsers"));
+      })
       .finally(() => setLoadingUsers(false));
-  }, [activeTab, token, user?.isAdmin, userPage, userQuery]);
+  }, [activeTab, showApiError, token, user?.isAdmin, userPage, userQuery, t]);
 
   useEffect(() => {
     if (!token || !user?.isAdmin || activeTab !== "types") {
@@ -68,9 +70,12 @@ export default function AdminUsersPage() {
 
     getRecipeTypes()
       .then(setRecipeTypes)
-      .catch((err) => setTypesError(err instanceof Error ? err.message : t("cannotLoadRecipeTypes")))
+      .catch((err) => {
+        setTypesError(err instanceof Error ? err.message : t("cannotLoadRecipeTypes"));
+        showApiError(err, t("cannotLoadRecipeTypes"));
+      })
       .finally(() => setLoadingTypes(false));
-  }, [activeTab, token, user?.isAdmin]);
+  }, [activeTab, showApiError, token, user?.isAdmin, t]);
 
   async function toggleAdmin(target: AdminUser) {
     if (!token) return;
@@ -81,8 +86,9 @@ export default function AdminUsersPage() {
     try {
       const updated = await updateUserAdmin(target.id, !target.isAdmin, token);
       setUsers((prev) => prev.map((entry) => (entry.id === updated.id ? { ...entry, ...updated } : entry)));
+      showSuccess(t("adminUpdatedSuccess"));
     } catch (err) {
-      setUsersError(err instanceof Error ? err.message : t("updateAdminFailed"));
+      showApiError(err, t("updateAdminFailed"));
     } finally {
       setBusyAdminId(null);
     }
@@ -97,8 +103,9 @@ export default function AdminUsersPage() {
     try {
       const updated = await updateUserRecommendation(target.id, !target.isRecommended, token);
       setUsers((prev) => prev.map((entry) => (entry.id === updated.id ? { ...entry, ...updated } : entry)));
+      showSuccess(t("recommendationUpdatedSuccess"));
     } catch (err) {
-      setUsersError(err instanceof Error ? err.message : t("updateRecommendationFailed"));
+      showApiError(err, t("updateRecommendationFailed"));
     } finally {
       setBusyId(null);
     }
@@ -109,16 +116,15 @@ export default function AdminUsersPage() {
     if (!token) return;
 
     setCreatingType(true);
-    setTypeMessage("");
     setTypesError("");
 
     try {
       const created = await createRecipeType({ name: newTypeName, color: newTypeColor }, token);
       setRecipeTypes((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
       setNewTypeName("");
-      setTypeMessage(t("recipeTypeCreated"));
+      showSuccess(t("recipeTypeCreated"));
     } catch (err) {
-      setTypesError(err instanceof Error ? err.message : t("cannotCreateRecipeType"));
+      showApiError(err, t("cannotCreateRecipeType"));
     } finally {
       setCreatingType(false);
     }
@@ -329,7 +335,6 @@ export default function AdminUsersPage() {
             </form>
 
             {typesError ? <p className={pageStyles.error}>{typesError}</p> : null}
-            {typeMessage ? <p className={pageStyles.success}>{typeMessage}</p> : null}
             {loadingTypes ? <PageSpinner label={t("loadingRecipeTypes")} /> : null}
 
             {!loadingTypes ? (

@@ -15,7 +15,7 @@ import styles from "../page.module.scss";
 const PAGE_SIZE = 12;
 
 export default function RecipesPage() {
-  const { token, isLoggedIn } = useAuth();
+  const { token, isLoggedIn, showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
   const [error, setError] = useState("");
@@ -106,12 +106,13 @@ export default function RecipesPage() {
       setHasMore(response.hasMore);
       setPage(response.page);
       setTotal(response.total);
-    } catch {
+    } catch (err) {
       if (requestId !== requestIdRef.current) {
         return;
       }
 
       setError("recipesUnavailable");
+      showApiError(err, t("recipesUnavailable"));
       if (replaceItems) {
         setRecipes([]);
       }
@@ -121,7 +122,7 @@ export default function RecipesPage() {
         setLoadingMore(false);
       }
     }
-  }, []);
+  }, [showApiError, t]);
 
   useEffect(() => {
     void loadRecipes(1, true);
@@ -194,6 +195,9 @@ export default function RecipesPage() {
 
         return prev;
       });
+      showSuccess(t(result.saved ? "recipeSavedToCollection" : "recipeRemovedFromCollection"));
+    } catch (err) {
+      showApiError(err, t("saveFailed"));
     } finally {
       setSavingId(null);
     }
@@ -323,10 +327,12 @@ export default function RecipesPage() {
               {recipe.postedByRecommendedUser ? (
                 <p className={styles.recommendedLabel}>{t("recommendedAuthor")}</p>
               ) : null}
-              <div className={styles.meta}>
-                <span>{recipe.preparationTime}</span>
-                <span>{recipe.servings}</span>
-              </div>
+              {recipe.preparationTime || recipe.servings ? (
+                <div className={styles.meta}>
+                  {recipe.preparationTime ? <span>{recipe.preparationTime}</span> : null}
+                  {recipe.servings ? <span>{recipe.servings}</span> : null}
+                </div>
+              ) : null}
               <div className={styles.cardRating}>
                 <StarRating
                   averageRating={recipe.averageRating}

@@ -8,9 +8,10 @@ async function bootstrap() {
 
   app.enableCors();
 
-  await app.init();
+  const port = process.env.PORT || 4000;
+  await app.listen(port);
 
-  return app.getHttpAdapter().getInstance();
+  console.log(`✓ Application is running on: http://localhost:${port}`);
 }
 
-export default bootstrap();
+bootstrap();

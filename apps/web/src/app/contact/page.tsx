@@ -1,19 +1,17 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useAuth } from "@/lib/auth";
 import { useTranslation } from "@/lib/useTranslation";
 import styles from "../page.module.scss";
 
 export default function ContactPage() {
+  const { showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-    setSuccess("");
     setSending(true);
 
     const form = event.currentTarget;
@@ -36,18 +34,18 @@ export default function ContactPage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setError(data?.error ?? t("contactSendError"));
+        showApiError(new Error(data?.error ?? t("contactSendError")), t("contactSendError"));
         return;
       }
 
       form.reset();
-      setSuccess(
+      showSuccess(
         data?.devMode
           ? t("contactSendSuccessDev")
           : t("contactSendSuccess"),
       );
     } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : t("contactSendError"));
+      showApiError(sendError, t("contactSendError"));
     } finally {
       setSending(false);
     }
@@ -79,9 +77,6 @@ export default function ContactPage() {
           <label htmlFor="message">{t("contactMessage")}</label>
           <textarea id="message" name="message" required rows={6} />
         </div>
-
-        {error ? <p className={styles.error}>{error}</p> : null}
-        {success ? <p className={styles.success}>{success}</p> : null}
 
         <button className={styles.button} type="submit" disabled={sending}>
           {sending ? t("sending") : t("sendMail")}

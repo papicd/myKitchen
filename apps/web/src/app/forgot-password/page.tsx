@@ -3,20 +3,18 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { forgotPassword } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 import { useTranslation } from "../../lib/useTranslation";
 import styles from "../page.module.scss";
 
 export default function ForgotPasswordPage() {
+  const { showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [devResetLink, setDevResetLink] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-    setSuccess("");
     setDevResetLink("");
     setIsSubmitting(true);
 
@@ -24,16 +22,12 @@ export default function ForgotPasswordPage() {
 
     try {
       const response = await forgotPassword(String(formData.get("email") ?? ""));
-      setSuccess(t("forgotPasswordSuccess"));
+      showSuccess(t("forgotPasswordSuccess"));
       if (response.devResetLink) {
         setDevResetLink(response.devResetLink);
       }
     } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : t("forgotPasswordRequestFailed"),
-      );
+      showApiError(submitError, t("forgotPasswordRequestFailed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -53,9 +47,6 @@ export default function ForgotPasswordPage() {
           <label htmlFor="email">{t("email")}</label>
           <input id="email" name="email" required type="email" />
         </div>
-
-        {error ? <p className={styles.error}>{error}</p> : null}
-        {success ? <p className={styles.success}>{success}</p> : null}
         {devResetLink ? (
           <p className={styles.muted}>
             {t("devResetLinkLabel")} <a href={devResetLink}>{t("openResetLink")}</a>

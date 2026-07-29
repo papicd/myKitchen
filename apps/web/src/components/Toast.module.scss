@@ -14,6 +14,24 @@
   animation: slideIn 0.18s ease;
 }
 
+.info {
+  border-color: var(--toast-border);
+  background: var(--toast-bg);
+  color: var(--toast-text);
+}
+
+.success {
+  border-color: color-mix(in srgb, var(--accent-success) 38%, transparent);
+  background: color-mix(in srgb, var(--accent-success-soft) 72%, white);
+  color: var(--primary);
+}
+
+.error {
+  border-color: color-mix(in srgb, var(--danger) 32%, transparent);
+  background: color-mix(in srgb, var(--danger-soft) 72%, white);
+  color: var(--primary);
+}
+
 .title {
   margin: 0 0 4px;
   font-size: 14px;

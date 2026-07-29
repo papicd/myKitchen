@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { login } from "../../lib/api";
@@ -10,13 +10,11 @@ import styles from "../page.module.scss";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { saveAuth } = useAuth();
+  const { saveAuth, showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
-  const [error, setError] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
 
     const formData = new FormData(event.currentTarget);
 
@@ -26,11 +24,10 @@ export default function LoginPage() {
         String(formData.get("password")),
       );
       saveAuth(auth);
+      showSuccess(t("signedIn"));
       router.push("/");
     } catch (loginError) {
-      setError(
-        loginError instanceof Error ? loginError.message : t("loginFailed"),
-      );
+      showApiError(loginError, t("loginFailed"));
     }
   }
 
@@ -55,7 +52,6 @@ export default function LoginPage() {
         <p className={styles.muted}>
           <Link href="/forgot-password">{t("forgotPasswordLink")}</Link>
         </p>
-        {error ? <p className={styles.error}>{error}</p> : null}
         <button className={styles.button}>{t("loginButton")}</button>
       </form>
 

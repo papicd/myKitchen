@@ -16,7 +16,20 @@ export class AuthError extends Error {
   }
 }
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+
+let recipeTypesCache: RecipeType[] | null = null;
+let recipeTypesPromise: Promise<RecipeType[]> | null = null;
 
 type RequestOptions = {
   token?: string | null;
@@ -26,14 +39,21 @@ type RequestOptions = {
 
 async function request<T>(path: string, options: RequestOptions = {}) {
   const method = options.method ?? (options.body ? "POST" : "GET");
-  const response = await fetch(`${API_URL}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+  } catch {
+    throw new ApiError("Ne možemo da uspostavimo vezu sa serverom.", 0);
+  }
+
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -45,7 +65,7 @@ async function request<T>(path: string, options: RequestOptions = {}) {
       throw new AuthError(data?.message ?? "Token je istekao");
     }
 
-    throw new Error(data?.message ?? "Zahtev nije uspeo");
+    throw new ApiError(data?.message ?? "Zahtev nije uspeo", response.status);
   }
 
   return data as T;
@@ -181,11 +201,11 @@ export function createRecipe(
   body: {
     title: string;
     shortDescription: string;
-    description: string;
+    description?: string;
     ingredients: string[];
     steps: string[];
-    preparationTime: string;
-    servings: string;
+    preparationTime?: string;
+    servings?: string;
     typeIds: string[];
     media?: Array<{ type: 'image' | 'video' | 'pdf'; url: string }>;
     links?: Array<{ label: string; url: string }>;
@@ -204,11 +224,11 @@ export function updateRecipe(
   body: {
     title: string;
     shortDescription: string;
-    description: string;
+    description?: string;
     ingredients: string[];
     steps: string[];
-    preparationTime: string;
-    servings: string;
+    preparationTime?: string;
+    servings?: string;
     typeIds: string[];
     media?: Array<{ type: 'image' | 'video' | 'pdf'; url: string }>;
     links?: Array<{ label: string; url: string }>;
@@ -281,7 +301,24 @@ export function updateUserAdmin(
 }
 
 export function getRecipeTypes() {
-  return request<RecipeType[]>('/recipes/types');
+  if (recipeTypesCache) {
+    return Promise.resolve(recipeTypesCache);
+  }
+
+  if (recipeTypesPromise) {
+    return recipeTypesPromise;
+  }
+
+  recipeTypesPromise = request<RecipeType[]>('/recipes/types')
+    .then((types) => {
+      recipeTypesCache = types;
+      return types;
+    })
+    .finally(() => {
+      recipeTypesPromise = null;
+    });
+
+  return recipeTypesPromise;
 }
 
 export function createRecipeType(
@@ -292,5 +329,10 @@ export function createRecipeType(
     token,
     body,
     method: 'POST',
+  }).then((created) => {
+    recipeTypesCache = recipeTypesCache
+      ? [...recipeTypesCache, created].sort((a, b) => a.name.localeCompare(b.name))
+      : [created];
+    return created;
   });
 }

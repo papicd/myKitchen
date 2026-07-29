@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SYSTEM_PROMPT = `Ti si kuvar-asistent na srpskom receptarskom portalu "Moja Kuhinja".
+const SYSTEM_PROMPT = `Ti si kuvar-asistent na srpskom receptarskom portalu "Šta pojesti".
 Pomazi korisnicima da pronadju recepte, predlozes jela na osnovu dostupnih namirnica i odgovaras na pitanja o kuvanju.
 Uvek odgovaraj na srpskom jeziku. Budi koncizan, koristan i prijatan.`;
 

@@ -11,7 +11,7 @@ export class Recipe {
   @Prop({ required: true, trim: true })
   shortDescription: string;
 
-  @Prop({ required: true })
+  @Prop({ trim: true, default: '' })
   description: string;
 
   @Prop({ type: [String], default: [] })
@@ -20,10 +20,10 @@ export class Recipe {
   @Prop({ type: [String], default: [] })
   steps: string[];
 
-  @Prop({ required: true })
+  @Prop({ trim: true, default: '' })
   preparationTime: string;
 
-  @Prop({ required: true })
+  @Prop({ trim: true, default: '' })
   servings: string;
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'RecipeType' }], default: [] })

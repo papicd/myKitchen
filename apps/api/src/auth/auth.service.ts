@@ -206,7 +206,7 @@ export class AuthService {
     await transporter.sendMail({
       from,
       to: email,
-      subject: 'Reset lozinke - Moja Kuhinja',
+      subject: 'Reset lozinke - Šta pojesti',
       text: `Primili smo zahtev za reset lozinke. Otvorite sledeci link:\n\n${resetUrl}\n\nAko niste trazili reset lozinke, ignorisite ovu poruku.`,
       html: `<p>Primili smo zahtev za reset lozinke.</p><p><a href="${resetUrl}">Kliknite ovde da postavite novu lozinku</a></p><p>Ako niste trazili reset lozinke, slobodno ignorisite ovu poruku.</p>`,
     });

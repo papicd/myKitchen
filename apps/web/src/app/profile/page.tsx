@@ -25,7 +25,7 @@ type PasswordForm = {
 };
 
 export default function ProfilePage() {
-  const { user, token, isLoggedIn, saveAuth } = useAuth();
+  const { user, token, isLoggedIn, saveAuth, showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
   const [recipeError, setRecipeError] = useState("");
@@ -45,9 +45,6 @@ export default function ProfilePage() {
   });
   const [profileSaving, setProfileSaving] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
-  const [profileMessage, setProfileMessage] = useState("");
-  const [profileError, setProfileError] = useState("");
-  const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
   useEffect(() => {
@@ -69,26 +66,25 @@ export default function ProfilePage() {
 
     getMyRecipes(token)
       .then(setRecipes)
-      .catch(() => {
+      .catch((err) => {
         setRecipeError(t("cannotLoadUserRecipes"));
+        showApiError(err, t("cannotLoadUserRecipes"));
       })
       .finally(() => setLoading(false));
-  }, [token, t]);
+  }, [showApiError, token, t]);
 
   async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!token) return;
 
     setProfileSaving(true);
-    setProfileMessage("");
-    setProfileError("");
 
     try {
       const auth = await updateMyProfile(profileForm, token);
       saveAuth(auth);
-      setProfileMessage(t("profileUpdated"));
+      showSuccess(t("profileUpdated"));
     } catch (err) {
-      setProfileError(err instanceof Error ? err.message : t("profileUpdateFailed"));
+      showApiError(err, t("profileUpdateFailed"));
     } finally {
       setProfileSaving(false);
     }
@@ -98,7 +94,6 @@ export default function ProfilePage() {
     event.preventDefault();
     if (!token) return;
 
-    setPasswordMessage("");
     setPasswordError("");
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
@@ -118,9 +113,9 @@ export default function ProfilePage() {
       );
       saveAuth(auth);
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      setPasswordMessage(t("passwordUpdated"));
+      showSuccess(t("passwordUpdated"));
     } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : t("passwordUpdateFailed"));
+      showApiError(err, t("passwordUpdateFailed"));
     } finally {
       setPasswordSaving(false);
     }
@@ -135,9 +130,10 @@ export default function ProfilePage() {
       const updatedRecipes = await getMyRecipes(token);
       setRecipes(updatedRecipes);
       setDeleteId(null);
+      showSuccess(t("recipeDeletedSuccess"));
     } catch (err) {
-      setRecipeError(err instanceof Error ? err.message : t("deleteError"));
       setDeleteId(null);
+      showApiError(err, t("deleteError"));
     } finally {
       setDeleting(false);
     }
@@ -247,8 +243,6 @@ export default function ProfilePage() {
                   required
                 />
               </div>
-              {profileError ? <p className={styles.error}>{profileError}</p> : null}
-              {profileMessage ? <p className={styles.success}>{profileMessage}</p> : null}
               <button className={styles.button} type="submit" disabled={profileSaving}>
                 {profileSaving ? t("saving") : t("saveChangesButton")}
               </button>
@@ -292,7 +286,6 @@ export default function ProfilePage() {
                 />
               </div>
               {passwordError ? <p className={styles.error}>{passwordError}</p> : null}
-              {passwordMessage ? <p className={styles.success}>{passwordMessage}</p> : null}
               <button className={styles.button} type="submit" disabled={passwordSaving}>
                 {passwordSaving ? t("saving") : t("updatePassword")}
               </button>
