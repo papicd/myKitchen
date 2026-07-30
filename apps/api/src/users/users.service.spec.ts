@@ -19,16 +19,27 @@ function createUser(overrides: Record<string, unknown> = {}) {
 }
 
 describe('UsersService profile updates', () => {
-  let userModel: { findById: jest.Mock; findOne: jest.Mock };
-  let recipeModel: Record<string, jest.Mock>;
+  let userModel: {
+    findById: jest.Mock;
+    findOne: jest.Mock;
+    find: jest.Mock;
+    countDocuments: jest.Mock;
+  };
+  let recipeModel: {
+    aggregate: jest.Mock;
+  };
   let service: UsersService;
 
   beforeEach(() => {
     userModel = {
       findById: jest.fn(),
       findOne: jest.fn(),
+      find: jest.fn(),
+      countDocuments: jest.fn(),
     };
-    recipeModel = {};
+    recipeModel = {
+      aggregate: jest.fn(),
+    };
     service = new UsersService(userModel as never, recipeModel as never);
   });
 
@@ -98,6 +109,38 @@ describe('UsersService profile updates', () => {
     expect(user.save).toHaveBeenCalledTimes(1);
     expect(user.password).not.toBe(password);
     await expect(bcrypt.compare('new-password', user.password)).resolves.toBe(true);
+  });
+
+  it('searches users accent-insensitively', async () => {
+    const user = createUser({
+      firstName: 'Đorđe',
+      lastName: 'Petrovic',
+      username: 'djordje',
+    });
+    const chain = {
+      sort: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockResolvedValue([user]),
+    };
+
+    userModel.countDocuments.mockResolvedValue(1);
+    userModel.find.mockReturnValue(chain);
+    recipeModel.aggregate.mockResolvedValue([{ _id: user._id, count: 2 }]);
+
+    const result = await service.findAllPublic({ query: 'dj' });
+
+    expect(userModel.find).toHaveBeenCalledWith({
+      $or: [
+        { firstName: { $regex: '(?:dj|đ)', $options: 'i' } },
+        { lastName: { $regex: '(?:dj|đ)', $options: 'i' } },
+        { username: { $regex: '(?:dj|đ)', $options: 'i' } },
+      ],
+    });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      firstName: 'Đorđe',
+      recipeCount: 2,
+    });
   });
 });
 

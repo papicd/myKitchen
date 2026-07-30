@@ -11,6 +11,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { Model, Types } from 'mongoose';
 import { Recipe } from '../recipes/schemas/recipe.schema';
+import { buildAccentInsensitivePattern } from '../shared/search-normalization';
 import { User } from './schemas/user.schema';
 
 export type CreateUserInput = {
@@ -146,9 +147,9 @@ export class UsersService implements OnApplicationBootstrap {
     const filter = query
       ? {
           $or: [
-            { firstName: { $regex: this.escapeRegExp(query), $options: 'i' } },
-            { lastName: { $regex: this.escapeRegExp(query), $options: 'i' } },
-            { username: { $regex: this.escapeRegExp(query), $options: 'i' } },
+            { firstName: { $regex: buildAccentInsensitivePattern(query), $options: 'i' } },
+            { lastName: { $regex: buildAccentInsensitivePattern(query), $options: 'i' } },
+            { username: { $regex: buildAccentInsensitivePattern(query), $options: 'i' } },
           ],
         }
       : {};
