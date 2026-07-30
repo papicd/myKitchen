@@ -8,6 +8,10 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { UsersService } from '../users/users.service';
+import {
+  buildAccentInsensitivePattern,
+  normalizeSearchText,
+} from '../shared/search-normalization';
 import { RecipeType } from './schemas/recipe-type.schema';
 import { Recipe } from './schemas/recipe.schema';
 
@@ -94,13 +98,15 @@ export class RecipesService implements OnApplicationBootstrap {
     const andClauses: Array<Record<string, unknown>> = [];
 
     if (normalizedQuery) {
-      andClauses.push({ title: new RegExp(this.escapeRegExp(normalizedQuery), 'i') });
+      andClauses.push({
+        title: new RegExp(buildAccentInsensitivePattern(normalizedQuery), 'i'),
+      });
     }
 
     if (groceryTerms.length > 0) {
       andClauses.push(
         ...groceryTerms.map((term) => {
-          const pattern = new RegExp(this.escapeRegExp(term), 'i');
+          const pattern = new RegExp(buildAccentInsensitivePattern(term), 'i');
           return {
             $or: [{ ingredients: pattern }, { title: pattern }, { description: pattern }],
           };
@@ -206,14 +212,16 @@ export class RecipesService implements OnApplicationBootstrap {
     const prepared = filteredByPreparation.map((recipe) => {
       const listItem = this.toListItem(recipe);
       const preparationMinutes = this.parsePreparationTimeToMinutes(recipe.preparationTime);
-      const ingredientValues = recipe.ingredients.map((ingredient) => ingredient.toLowerCase());
+        const ingredientValues = recipe.ingredients.map((ingredient) =>
+          normalizeSearchText(ingredient),
+        );
       const createdAtValue = (recipe as unknown as { createdAt?: Date }).createdAt;
       const matchedGroceries =
         groceryTerms.length === 0
           ? undefined
           : groceryTerms.reduce((total, term) => {
-              const normalizedTerm = term.toLowerCase();
-              const matched = ingredientValues.some((ingredient) => ingredient.includes(normalizedTerm));
+                const normalizedTerm = normalizeSearchText(term);
+                const matched = ingredientValues.some((ingredient) => ingredient.includes(normalizedTerm));
               return total + (matched ? 1 : 0);
             }, 0);
 
@@ -329,7 +337,7 @@ export class RecipesService implements OnApplicationBootstrap {
     }
 
     const existing = await this.recipeTypeModel.findOne({
-      name: { $regex: `^${this.escapeRegExp(name)}$`, $options: 'i' },
+      name: { $regex: `^${buildAccentInsensitivePattern(name)}$`, $options: 'i' },
     });
 
     if (existing) {
@@ -525,7 +533,7 @@ export class RecipesService implements OnApplicationBootstrap {
     if (terms.length > 0) {
       andClauses.push({
         $or: terms.flatMap((term) => {
-          const pattern = new RegExp(this.escapeRegExp(term), 'i');
+          const pattern = new RegExp(buildAccentInsensitivePattern(term), 'i');
           return [{ ingredients: pattern }, { title: pattern }, { description: pattern }];
         }),
       });
@@ -545,10 +553,10 @@ export class RecipesService implements OnApplicationBootstrap {
     const scoredRecipes = recipes
       .map((recipe) => {
         const ingredients = recipe.ingredients.map((ingredient) =>
-          ingredient.toLowerCase(),
+          normalizeSearchText(ingredient),
         );
         const score = terms.reduce((total, term) => {
-          const normalizedTerm = term.toLowerCase();
+          const normalizedTerm = normalizeSearchText(term);
           const hasMatch = ingredients.some((ingredient) =>
             ingredient.includes(normalizedTerm),
           );
@@ -565,7 +573,7 @@ export class RecipesService implements OnApplicationBootstrap {
   private async seedRecipes() {
     const admin = await this.usersService.findByEmail('dragan.papic1996@gmail.com');
     const defaultType = await this.recipeTypeModel.findOne({
-      name: { $regex: '^glavno jelo$', $options: 'i' },
+      name: { $regex: `^${buildAccentInsensitivePattern('glavno jelo')}$`, $options: 'i' },
     });
 
     if (!admin?._id) {
@@ -940,7 +948,7 @@ export class RecipesService implements OnApplicationBootstrap {
 
     for (const item of defaults) {
       await this.recipeTypeModel.updateOne(
-        { name: { $regex: `^${this.escapeRegExp(item.name)}$`, $options: 'i' } },
+        { name: { $regex: `^${buildAccentInsensitivePattern(item.name)}$`, $options: 'i' } },
         { $setOnInsert: item },
         { upsert: true },
       );
@@ -949,7 +957,7 @@ export class RecipesService implements OnApplicationBootstrap {
 
   private async ensureRecipesHaveDefaultType() {
     const defaultType = await this.recipeTypeModel.findOne({
-      name: { $regex: '^glavno jelo$', $options: 'i' },
+      name: { $regex: `^${buildAccentInsensitivePattern('glavno jelo')}$`, $options: 'i' },
     });
 
     if (!defaultType?._id) {
