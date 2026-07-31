@@ -65,6 +65,7 @@ export class RecipesService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {
     await this.seedRecipeTypes();
+    await this.repairRecipeTypeReferences();
     await this.seedRecipes();
     await this.ensureRecipesHaveDefaultType();
     await this.enrichRecipesWithMedia();
@@ -1061,6 +1062,42 @@ export class RecipesService implements OnApplicationBootstrap {
         $set: { typeIds: [defaultType._id] },
       },
     );
+  }
+
+  private async repairRecipeTypeReferences() {
+    const defaultType = await this.recipeTypeModel.findOne({
+      name: { $regex: `^${buildAccentInsensitivePattern('glavno jelo')}$`, $options: 'i' },
+    });
+
+    if (!defaultType?._id) {
+      return;
+    }
+
+    const existingTypes = await this.recipeTypeModel.find({}, { _id: 1 });
+    const validTypeIds = new Set(existingTypes.map((type) => String(type._id)));
+    const recipes = await this.recipeModel.find({}, { _id: 1, typeIds: 1 });
+
+    for (const recipe of recipes) {
+      const rawTypeIds = Array.isArray(recipe.typeIds) ? recipe.typeIds : [];
+      const normalizedTypeIds = rawTypeIds
+        .map((id) => String(id))
+        .filter((id) => validTypeIds.has(id));
+
+      const uniqueTypeIds = Array.from(new Set(normalizedTypeIds));
+      const nextTypeIds =
+        uniqueTypeIds.length > 0
+          ? uniqueTypeIds.map((id) => new Types.ObjectId(id))
+          : [defaultType._id as Types.ObjectId];
+
+      const currentTypeIdValues = rawTypeIds.map((id) => String(id));
+      const nextTypeIdValues = nextTypeIds.map((id) => String(id));
+
+      if (JSON.stringify(currentTypeIdValues) === JSON.stringify(nextTypeIdValues)) {
+        continue;
+      }
+
+      await this.recipeModel.updateOne({ _id: recipe._id }, { $set: { typeIds: nextTypeIds } });
+    }
   }
 
   private async enrichRecipesWithMedia() {
