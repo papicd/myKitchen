@@ -845,6 +845,95 @@ export class RecipesService implements OnApplicationBootstrap {
         preparationTime: '40 minuta',
         servings: '30 kolacica',
       },
+      {
+        title: 'Punjene paprike u paradajz sosu',
+        shortDescription:
+          'Klasicne punjene paprike sa mesom i pirincem, kuvane u blagom paradajz sosu.',
+        description:
+          'Pouzdan recept za domace punjene paprike koje ostaju socne i posle podgrevanja. Koraci ukljucuju pripremu fila, pravilno punjenje bez pucanja i lagano kuvanje za pun ukus.',
+        ingredients: [
+          '8 srednjih zelenih paprika',
+          '600 g mesanog mlevenog mesa',
+          '100 g pirinca',
+          '1 glavica crnog luka',
+          '2 cena belog luka',
+          '1 jaje',
+          '1 kasicica soli',
+          '1/2 kasicice bibera',
+          '1 kasicica aleve paprike',
+          '700 ml paradajz pirea',
+          '400 ml vode',
+          '1 kasika ulja',
+        ],
+        steps: [
+          'Paprike oprati, odstraniti peteljke i ocistiti od semenki.',
+          'Na ulju proprziti luk i beli luk 5 minuta, zatim ohladiti.',
+          'Umesati meso, opran pirinac, jaje, zacine i proprzen luk.',
+          'Paprike napuniti do 3/4 visine da pirinac ima mesta da nabubri.',
+          'Poredjati paprike u serpu i naliti mesavinom paradajz pirea i vode.',
+          'Kuvati na tihoj vatri 70 do 80 minuta uz povremeno prelivanje sosom.',
+          'Ostaviti 10 minuta da odmore pre serviranja.',
+        ],
+        preparationTime: '1 sat i 40 minuta',
+        servings: '6 porcija',
+      },
+      {
+        title: 'Proja sa sirom i jogurtom',
+        shortDescription:
+          'Mekana i socna proja sa sirom, odlicna za dorucak ili veceru.',
+        description:
+          'Brza domaca proja bez komplikacije, sa jasnim merama i vremenom pecenja. Testo je uravnotezeno tako da proja ostane vazdusasta iznutra i zlatna spolja.',
+        ingredients: [
+          '3 jaja',
+          '200 g kukuruznog brasna',
+          '120 g belog brasna',
+          '250 ml jogurta',
+          '120 ml ulja',
+          '200 g sitnog sira',
+          '1 prasak za pecivo',
+          '1 kasicica soli',
+          '50 ml mineralne vode',
+        ],
+        steps: [
+          'Umutiti jaja sa solju, zatim dodati jogurt i ulje.',
+          'Umesati kukuruzno i belo brasno sa praskom za pecivo.',
+          'Dodati izmrvljen sir i mineralnu vodu, pa sjediniti bez preteranog mesanja.',
+          'Sipati smesu u podmazan pleh i poravnati.',
+          'Peci 30 do 35 minuta na 200 stepeni dok povrsina ne porumeni.',
+          'Proju kratko prohladiti i seci na kocke.',
+        ],
+        preparationTime: '45 minuta',
+        servings: '8 porcija',
+      },
+      {
+        title: 'Cupavci sa cokoladnom glazurom i kokosom',
+        shortDescription:
+          'Vazdusasti biskvitni kolacici umoceni u cokoladu i uvaljani u kokos.',
+        description:
+          'Detaljan recept za cupavce koji ostaju mekani i sutradan. Dobijas tacne odnose za biskvit i glazuru kako bi svaki komad bio ravnomerno socan i pun ukusa.',
+        ingredients: [
+          '4 jaja',
+          '180 g secera',
+          '220 g brasna',
+          '1 prasak za pecivo',
+          '120 ml mleka',
+          '100 ml ulja',
+          'Za glazuru: 200 g tamne cokolade, 120 g putera, 150 ml mleka',
+          '150 g kokosa za valjanje',
+        ],
+        steps: [
+          'Umutiti jaja i secer 5 minuta dok smesa ne postane penasta.',
+          'Dodati mleko i ulje, pa kratko umutiti.',
+          'Umesati brasno sa praskom za pecivo i sipati u pleh oblozen papirom.',
+          'Peci 20 do 25 minuta na 180 stepeni i potpuno ohladiti biskvit.',
+          'Biskvit iseci na kocke priblizno 4x4 cm.',
+          'Za glazuru otopiti cokoladu, puter i mleko na tihoj vatri.',
+          'Svaku kocku kratko umociti u glazuru, pa uvaljati u kokos.',
+          'Ostaviti cupavce 20 minuta da se glazura stegne.',
+        ],
+        preparationTime: '1 sat',
+        servings: '24 kolacica',
+      },
     ];
 
     for (const recipe of recipes) {

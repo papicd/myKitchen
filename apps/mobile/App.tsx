@@ -27,6 +27,12 @@ type User = {
   isAdmin: boolean;
 };
 
+type RecipeType = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 type RecipeListItem = {
   id: string;
   title: string;
@@ -38,6 +44,7 @@ type RecipeListItem = {
   ratingsCount: number;
   matchedGroceries?: number;
   postedByRecommendedUser?: boolean;
+  types?: RecipeType[];
   author?: { id: string; firstName: string; lastName: string };
 };
 
@@ -130,6 +137,27 @@ function Chip({ label }: { label: string }) {
   return <View style={s.chip}><Text style={s.chipTxt}>{label}</Text></View>;
 }
 
+function getContrastTextColor(hex: string) {
+  const normalized = hex.replace('#', '');
+  const full = normalized.length === 3
+    ? normalized
+      .split('')
+      .map((char) => `${char}${char}`)
+      .join('')
+    : normalized;
+
+  const red = Number.parseInt(full.slice(0, 2), 16);
+  const green = Number.parseInt(full.slice(2, 4), 16);
+  const blue = Number.parseInt(full.slice(4, 6), 16);
+
+  if ([red, green, blue].some(Number.isNaN)) {
+    return '#ffffff';
+  }
+
+  const luminance = (red * 299 + green * 587 + blue * 114) / 1000;
+  return luminance >= 150 ? '#1f2937' : '#ffffff';
+}
+
 function EmptyState({ icon, title, subtitle }: { icon: string; title: string; subtitle?: string }) {
   return (
     <View style={s.emptyState}>
@@ -205,6 +233,8 @@ function Field({
 // ─────────────────────────────── Recipe Card ────────────────────────────────
 
 function RecipeCard({ recipe, onPress }: { recipe: RecipeListItem; onPress: () => void }) {
+  const visibleTypes = recipe.types?.slice(0, 3) ?? [];
+
   return (
     <Pressable
       onPress={onPress}
@@ -215,6 +245,17 @@ function RecipeCard({ recipe, onPress }: { recipe: RecipeListItem; onPress: () =
       )}
       <Text style={s.recipeCardTitle}>{recipe.title}</Text>
       <Text style={s.recipeCardDesc} numberOfLines={2}>{recipe.shortDescription}</Text>
+      {visibleTypes.length > 0 ? (
+        <View style={s.typeRow}>
+          {visibleTypes.map((type) => (
+            <View key={type.id} style={[s.typeBadge, { backgroundColor: type.color }]}>
+              <Text style={[s.typeBadgeText, { color: getContrastTextColor(type.color) }]}>
+                {type.name}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
       <Stars rating={recipe.averageRating ?? 0} />
       <View style={s.metaRow}>
         <View style={s.metaItem}><Text style={s.metaIcon}>⏱</Text><Text style={s.metaText}>{recipe.preparationTime}</Text></View>
@@ -1061,6 +1102,9 @@ const s = StyleSheet.create({
   cardPressed: { opacity: 0.87 },
   recipeCardTitle: { fontSize: 20, fontWeight: '900', color: C.fg, lineHeight: 24 },
   recipeCardDesc: { fontSize: 14, color: C.muted, lineHeight: 21 },
+  typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  typeBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  typeBadgeText: { fontSize: 11, fontWeight: '900' },
   metaRow: { flexDirection: 'row', gap: 16 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   metaIcon: { fontSize: 13 },
