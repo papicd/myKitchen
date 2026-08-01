@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { PageSpinner } from "../../components/PageSpinner";
 import { RecipeTypeBadges } from "../../components/RecipeTypeBadges";
 import { getRecipeTypes, getSavedRecipes, searchRecipes, toggleSaveRecipe } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -18,6 +19,8 @@ export default function FindPage() {
   const [recipeTypes, setRecipeTypes] = useState<RecipeType[]>([]);
   const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
   const [groceriesInput, setGroceriesInput] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRequestIdRef = useRef(0);
 
   useEffect(() => {
     getRecipeTypes()
@@ -33,13 +36,28 @@ export default function FindPage() {
       return;
     }
 
+    const requestId = searchRequestIdRef.current + 1;
+    searchRequestIdRef.current = requestId;
+    setIsSearching(true);
+
     try {
       const foundRecipes = await searchRecipes(query, token, typeIds);
-      setRecipes(foundRecipes);
       const savedRecipes = await getSavedRecipes(token);
+
+      if (requestId !== searchRequestIdRef.current) {
+        return;
+      }
+
+      setRecipes(foundRecipes);
       setSavedIds(savedRecipes.map((recipe) => recipe.id));
     } catch (searchError) {
-      showApiError(searchError, t("searchFailed"));
+      if (requestId === searchRequestIdRef.current) {
+        showApiError(searchError, t("searchFailed"));
+      }
+    } finally {
+      if (requestId === searchRequestIdRef.current) {
+        setIsSearching(false);
+      }
     }
   }
 
@@ -163,8 +181,12 @@ export default function FindPage() {
             })}
           </div>
         </div>
-        <button className={styles.button}>{t("searchButton")}</button>
+        <button className={styles.button} disabled={isSearching}>
+          {isSearching ? t("loading") : t("searchButton")}
+        </button>
       </form>
+
+      {isSearching ? <PageSpinner label={t("loadingRecipes")} /> : null}
 
       <section className={styles.grid}>
         {recipes.map((recipe) => (
