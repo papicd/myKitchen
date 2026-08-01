@@ -1,10 +1,17 @@
 .wrap {
-  width: 100%;
-  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 14px;
   color: var(--muted);
+  padding: 14px 18px;
+  border: 1px solid var(--primary-alpha-14);
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--surface-glass-96), var(--panel-soft-alpha-92));
+  box-shadow: 0 8px 24px var(--ink-alpha-08);
+  margin: 0 auto;
 }
 
 .fullPage {
@@ -12,12 +19,42 @@
 }
 
 .spinner {
-  width: 22px;
-  height: 22px;
-  border: 3px solid var(--primary-alpha-22);
-  border-top-color: var(--primary);
+  --spinner-size: 26px;
+  position: relative;
+  width: var(--spinner-size);
+  height: var(--spinner-size);
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    conic-gradient(
+      from 90deg,
+      var(--primary-alpha-12),
+      var(--primary),
+      var(--primary-strong),
+      var(--primary-alpha-12)
+    ) border-box;
+  animation: spin 0.9s linear infinite;
+}
+
+.spinnerCore {
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, var(--primary-alpha-35), var(--panel));
+  box-shadow: inset 0 0 0 1px var(--primary-alpha-14);
+}
+
+.sizeSm {
+  --spinner-size: 20px;
+}
+
+.sizeMd {
+  --spinner-size: 26px;
+}
+
+.sizeLg {
+  --spinner-size: 34px;
 }
 
 .label {

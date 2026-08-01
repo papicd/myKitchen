@@ -57,6 +57,8 @@ export type RecipeTypeOutput = {
 
 @Injectable()
 export class RecipesService implements OnApplicationBootstrap {
+  private readonly recipeTypeLookup = new Map<string, RecipeTypeOutput>();
+
   constructor(
     @InjectModel(Recipe.name) private readonly recipeModel: Model<Recipe>,
     @InjectModel(RecipeType.name) private readonly recipeTypeModel: Model<RecipeType>,
@@ -65,6 +67,7 @@ export class RecipesService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {
     await this.seedRecipeTypes();
+    await this.refreshRecipeTypeLookup();
     await this.repairRecipeTypeReferences();
     await this.seedRecipes();
     await this.ensureRecipesHaveDefaultType();
@@ -76,7 +79,7 @@ export class RecipesService implements OnApplicationBootstrap {
     const recipes = await this.recipeModel
       .find()
       .sort({ createdAt: -1 })
-      .populate({ path: 'typeIds', select: 'name color' });
+      .populate({ path: 'typeIds', select: '_id name color' });
     return this.attachAuthors(recipes.map((recipe) => this.toListItem(recipe)));
   }
 
@@ -152,7 +155,7 @@ export class RecipesService implements OnApplicationBootstrap {
         .sort({ createdAt: -1 })
         .skip(offset)
         .limit(limit)
-        .populate({ path: 'typeIds', select: 'name color' });
+        .populate({ path: 'typeIds', select: '_id name color' });
 
       const items = await this.attachAuthors(recipes.map((recipe) => this.toListItem(recipe)));
 
@@ -178,7 +181,7 @@ export class RecipesService implements OnApplicationBootstrap {
         .sort({ createdAt: -1 })
         .skip(offset)
         .limit(limit)
-        .populate({ path: 'typeIds', select: 'name color' });
+        .populate({ path: 'typeIds', select: '_id name color' });
 
       const items = await this.attachAuthors(recipes.map((recipe) => this.toListItem(recipe)));
 
@@ -195,7 +198,7 @@ export class RecipesService implements OnApplicationBootstrap {
     const recipes = await this.recipeModel
       .find(filter)
       .sort({ createdAt: -1 })
-      .populate({ path: 'typeIds', select: 'name color' });
+      .populate({ path: 'typeIds', select: '_id name color' });
 
     const filteredByPreparation = recipes.filter((recipe) => {
       if (typeof maxPreparationMinutes !== 'number') {
@@ -282,7 +285,7 @@ export class RecipesService implements OnApplicationBootstrap {
   async findOne(id: string, currentUserId?: string) {
     const recipe = await this.recipeModel
       .findById(id)
-      .populate({ path: 'typeIds', select: 'name color' });
+      .populate({ path: 'typeIds', select: '_id name color' });
 
     if (!recipe) {
       throw new NotFoundException('Recept nije pronadjen');
@@ -295,7 +298,7 @@ export class RecipesService implements OnApplicationBootstrap {
     const recipes = await this.recipeModel
       .find({ createdBy: new Types.ObjectId(userId) })
       .sort({ createdAt: -1 })
-      .populate({ path: 'typeIds', select: 'name color' });
+      .populate({ path: 'typeIds', select: '_id name color' });
 
     return this.attachAuthors(recipes.map((recipe) => this.toListItem(recipe)));
   }
@@ -310,7 +313,7 @@ export class RecipesService implements OnApplicationBootstrap {
     const recipes = await this.recipeModel
       .find({ _id: { $in: savedRecipeIds.map((id) => new Types.ObjectId(id)) } })
       .sort({ createdAt: -1 })
-      .populate({ path: 'typeIds', select: 'name color' });
+      .populate({ path: 'typeIds', select: '_id name color' });
 
     return this.attachAuthors(recipes.map((recipe) => this.toListItem(recipe, userId)));
   }
@@ -319,7 +322,7 @@ export class RecipesService implements OnApplicationBootstrap {
     const recipes = await this.recipeModel
       .find({ 'ratings.userId': new Types.ObjectId(userId) })
       .sort({ createdAt: -1 })
-      .populate({ path: 'typeIds', select: 'name color' });
+      .populate({ path: 'typeIds', select: '_id name color' });
 
     return this.attachAuthors(recipes.map((recipe) => this.toListItem(recipe, userId)));
   }
@@ -346,7 +349,9 @@ export class RecipesService implements OnApplicationBootstrap {
     }
 
     const created = await this.recipeTypeModel.create({ name, color });
-    return this.toRecipeType(created);
+    const output = this.toRecipeType(created);
+    this.recipeTypeLookup.set(output.id, output);
+    return output;
   }
 
   async create(input: CreateRecipeInput, userId: string) {
@@ -549,7 +554,7 @@ export class RecipesService implements OnApplicationBootstrap {
     const recipes = await this.recipeModel
       .find(searchFilter)
       .sort({ createdAt: -1 })
-      .populate({ path: 'typeIds', select: 'name color' });
+      .populate({ path: 'typeIds', select: '_id name color' });
 
     const scoredRecipes = recipes
       .map((recipe) => {
@@ -1024,6 +1029,20 @@ export class RecipesService implements OnApplicationBootstrap {
     };
   }
 
+  private async refreshRecipeTypeLookup() {
+    const types = await this.recipeTypeModel.find({}, { _id: 1, name: 1, color: 1 }).lean();
+    this.recipeTypeLookup.clear();
+
+    for (const type of types) {
+      const mapped = {
+        id: String(type._id),
+        name: type.name,
+        color: type.color,
+      };
+      this.recipeTypeLookup.set(mapped.id, mapped);
+    }
+  }
+
   private async seedRecipeTypes() {
     const defaults: Array<{ name: string; color: string }> = [
       { name: 'dorucak', color: '#F59E0B' },
@@ -1214,7 +1233,7 @@ export class RecipesService implements OnApplicationBootstrap {
   ) {
     const populatedRecipe = await this.recipeModel
       .findById(String(recipe._id))
-      .populate({ path: 'typeIds', select: 'name color' });
+      .populate({ path: 'typeIds', select: '_id name color' });
 
     if (!populatedRecipe) {
       throw new NotFoundException('Recept nije pronadjen');
@@ -1313,28 +1332,64 @@ export class RecipesService implements OnApplicationBootstrap {
       return [];
     }
 
-    return recipe.typeIds
-      .map((entry) => {
-        if (
-          entry &&
-          typeof entry === 'object' &&
-          '_id' in entry &&
-          'name' in entry &&
-          'color' in entry
-        ) {
-          const record = entry as { _id: unknown; name: unknown; color: unknown };
-          if (typeof record.name === 'string' && typeof record.color === 'string') {
-            return {
-              id: String(record._id),
+    const collected: RecipeTypeOutput[] = [];
+    const seenIds = new Set<string>();
+
+    for (let index = 0; index < recipe.typeIds.length; index += 1) {
+      const entry = recipe.typeIds[index];
+
+      if (entry && typeof entry === 'object') {
+        const record = entry as { _id?: unknown; id?: unknown; name?: unknown; color?: unknown };
+
+        if (typeof record.name === 'string' && typeof record.color === 'string') {
+          const resolvedId =
+            record._id !== undefined
+              ? String(record._id)
+              : typeof record.id === 'string' && record.id.trim()
+                ? record.id
+                : `type-${index}-${record.name}`;
+
+          if (!seenIds.has(resolvedId)) {
+            seenIds.add(resolvedId);
+            collected.push({
+              id: resolvedId,
               name: record.name,
               color: record.color,
-            };
+            });
           }
+
+          continue;
         }
 
-        return null;
-      })
-      .filter((entry): entry is RecipeTypeOutput => entry !== null);
+        const fallbackId =
+          record._id !== undefined
+            ? String(record._id)
+            : typeof record.id === 'string' && record.id.trim()
+              ? record.id
+              : '';
+
+        if (!fallbackId) {
+          continue;
+        }
+
+        const fallbackType = this.recipeTypeLookup.get(fallbackId);
+        if (fallbackType && !seenIds.has(fallbackType.id)) {
+          seenIds.add(fallbackType.id);
+          collected.push(fallbackType);
+        }
+
+        continue;
+      }
+
+      const lookupId = String(entry);
+      const fallbackType = this.recipeTypeLookup.get(lookupId);
+      if (fallbackType && !seenIds.has(fallbackType.id)) {
+        seenIds.add(fallbackType.id);
+        collected.push(fallbackType);
+      }
+    }
+
+    return collected;
   }
 
   private escapeRegExp(value: string) {

@@ -315,7 +315,7 @@ export default function RecipesPage() {
       </section>
 
       {error ? <p className={styles.error}>{t(error)}</p> : null}
-      {loading && !error ? <PageSpinner label={t("loadingRecipes")} /> : null}
+      {loading && !error ? <PageSpinner label={t("loadingRecipes")} size="lg" /> : null}
 
       <section className={styles.grid}>
         {recipes.map((recipe) => (
@@ -379,7 +379,7 @@ export default function RecipesPage() {
 
       <div ref={sentinelRef} className={styles.lazySentinel} aria-hidden="true" />
 
-      {loadingMore ? <PageSpinner label={t("loadingMoreRecipes")} /> : null}
+      {loadingMore ? <PageSpinner label={t("loadingMoreRecipes")} size="sm" /> : null}
 
       {!loading && hasMore ? (
         <div className={styles.loadMoreWrap}>

@@ -350,5 +350,6 @@
   "recommendationUpdatedSuccess": "Status preporuke je uspešno ažuriran.",
   "adminUpdatedSuccess": "Admin prava su uspešno ažurirana.",
   "requiredBadge": "Obavezno",
-  "optionalBadge": "Opciono"
+  "optionalBadge": "Opciono",
+  "reset": "Resetuj"
 }

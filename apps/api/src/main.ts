@@ -8,10 +8,15 @@ async function bootstrap() {
 
   app.enableCors();
 
-  const port = process.env.PORT || 4000;
+  if (process.env.VERCEL) {
+    await app.init();
+    return app.getHttpAdapter().getInstance();
+  }
+
+  const port = Number(process.env.PORT ?? 4000);
   await app.listen(port);
 
-  console.log(`✓ Application is running on: http://localhost:${port}`);
+  return app;
 }
 
-bootstrap();
+export default bootstrap();
