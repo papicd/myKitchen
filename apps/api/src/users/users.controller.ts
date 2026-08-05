@@ -1,10 +1,14 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
+  Post,
   Query,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -33,9 +37,93 @@ export class UsersController {
     });
   }
 
-  @Get(':id')
-  findOnePublic(@Param('id') id: string) {
-    return this.usersService.findPublicById(id);
+  @Get('me/following')
+  findFollowing(@Headers('authorization') authorization?: string) {
+    const { userId } = this.getUser(authorization);
+    return this.usersService.getFollowingUsers(userId);
+  }
+
+  @Get('me/feed')
+  findFeed(@Headers('authorization') authorization?: string) {
+    const { userId } = this.getUser(authorization);
+    return this.usersService.getActivityFeed(userId);
+  }
+
+  @Get('me/collections')
+  findCollections(@Headers('authorization') authorization?: string) {
+    const { userId } = this.getUser(authorization);
+    return this.usersService.getRecipeCollections(userId);
+  }
+
+  @Post('me/collections')
+  createCollection(
+    @Body() body: { name?: string },
+    @Headers('authorization') authorization?: string,
+  ) {
+    const { userId } = this.getUser(authorization);
+    return this.usersService.createRecipeCollection(userId, body.name);
+  }
+
+  @Patch('me/collections/:collectionId')
+  renameCollection(
+    @Param('collectionId') collectionId: string,
+    @Body() body: { name?: string },
+    @Headers('authorization') authorization?: string,
+  ) {
+    const { userId } = this.getUser(authorization);
+    return this.usersService.renameRecipeCollection(userId, collectionId, body.name);
+  }
+
+  @Delete('me/collections/:collectionId')
+  @HttpCode(HttpStatus.OK)
+  deleteCollection(
+    @Param('collectionId') collectionId: string,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const { userId } = this.getUser(authorization);
+    return this.usersService.deleteRecipeCollection(userId, collectionId);
+  }
+
+  @Post('me/collections/:collectionId/recipes')
+  addRecipeToCollection(
+    @Param('collectionId') collectionId: string,
+    @Body() body: { recipeId?: string },
+    @Headers('authorization') authorization?: string,
+  ) {
+    const { userId } = this.getUser(authorization);
+    return this.usersService.addRecipeToCollection(userId, collectionId, String(body.recipeId ?? ''));
+  }
+
+  @Delete('me/collections/:collectionId/recipes/:recipeId')
+  @HttpCode(HttpStatus.OK)
+  removeRecipeFromCollection(
+    @Param('collectionId') collectionId: string,
+    @Param('recipeId') recipeId: string,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const { userId } = this.getUser(authorization);
+    return this.usersService.removeRecipeFromCollection(userId, collectionId, recipeId);
+  }
+
+  @Get('me/notifications')
+  findNotifications(@Headers('authorization') authorization?: string) {
+    const { userId } = this.getUser(authorization);
+    return this.usersService.getNotifications(userId);
+  }
+
+  @Patch('me/notifications/read-all')
+  readAllNotifications(@Headers('authorization') authorization?: string) {
+    const { userId } = this.getUser(authorization);
+    return this.usersService.markAllNotificationsAsRead(userId);
+  }
+
+  @Patch('me/notifications/:notificationId/read')
+  readNotification(
+    @Param('notificationId') notificationId: string,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const { userId } = this.getUser(authorization);
+    return this.usersService.markNotificationAsRead(userId, notificationId);
   }
 
   @Patch('me')
@@ -46,6 +134,24 @@ export class UsersController {
     const { userId } = this.getUser(authorization);
     const user = await this.usersService.updateOwnProfile(userId, body);
     return this.createAuthResponse(user);
+  }
+
+  @Post(':id/follow')
+  toggleFollow(
+    @Param('id') id: string,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const { userId } = this.getUser(authorization);
+    return this.usersService.toggleFollow(userId, id);
+  }
+
+  @Get(':id')
+  findOnePublic(
+    @Param('id') id: string,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const user = this.tryGetUser(authorization);
+    return this.usersService.findPublicProfile(id, user?.userId);
   }
 
   @Patch(':id/recommendation')
@@ -122,6 +228,18 @@ export class UsersController {
     }
   }
 
+  private tryGetUser(authorization?: string) {
+    if (!authorization?.startsWith('Bearer ')) {
+      return null;
+    }
+
+    try {
+      return this.getUser(authorization);
+    } catch {
+      return null;
+    }
+  }
+
   private createAuthResponse(user: {
     id: string;
     firstName: string;
@@ -130,6 +248,7 @@ export class UsersController {
     email: string;
     isAdmin: boolean;
     isRecommended: boolean;
+    avatarUrl?: string | null;
   }) {
     const token = this.jwtService.sign({
       sub: user.id,
@@ -139,6 +258,7 @@ export class UsersController {
       email: user.email,
       isAdmin: user.isAdmin,
       isRecommended: user.isRecommended,
+      avatarUrl: user.avatarUrl ?? null,
     });
 
     return { token, user };

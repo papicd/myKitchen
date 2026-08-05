@@ -85,9 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [errorDialog, setErrorDialog] = useState<ErrorDialogState | null>(null);
   const [language, setLanguageState] = useState<'en' | 'sr'>('sr');
 
-  const dictionary = language === "en" ? en : sr;
+  const dictionary = (language === "en" ? en : sr) as Record<string, string>;
   const t = useCallback(
-    (key: string) => dictionary[key as keyof typeof sr] ?? String(key),
+    (key: string) => dictionary[key] ?? String(key),
     [dictionary],
   );
 

@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { NotificationsModule } from './notifications/notifications.module';
 import { RecipesModule } from './recipes/recipes.module';
 import { UsersModule } from './users/users.module';
 
@@ -44,6 +45,7 @@ import { UsersModule } from './users/users.module';
       },
     }),
     AuthModule,
+    NotificationsModule,
     RecipesModule,
     UsersModule,
   ],

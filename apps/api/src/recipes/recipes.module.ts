@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
 import { RecipeType, RecipeTypeSchema } from './schemas/recipe-type.schema';
 import { Recipe, RecipeSchema } from './schemas/recipe.schema';
@@ -10,6 +11,7 @@ import { RecipesService } from './recipes.service';
 
 @Module({
   imports: [
+    NotificationsModule,
     UsersModule,
     MongooseModule.forFeature([
       { name: Recipe.name, schema: RecipeSchema },

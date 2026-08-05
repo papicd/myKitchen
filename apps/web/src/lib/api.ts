@@ -1,7 +1,10 @@
 import {
+  ActivityFeedItem,
   AdminUser,
   AuthResponse,
+  NotificationsResponse,
   PaginatedAdminUsers,
+  RecipeCollection,
   RecipeBrowseFilters,
   RecipeBrowseResponse,
   RecipeDetails,
@@ -179,8 +182,8 @@ export function getUserRecipes(userId: string) {
   return request<RecipeListItem[]>(`/recipes/by-user/${userId}`);
 }
 
-export function getUserProfile(userId: string) {
-  return request<AdminUser>(`/users/${userId}`);
+export function getUserProfile(userId: string, token?: string | null) {
+  return request<AdminUser>(`/users/${userId}`, { token });
 }
 
 export function updateMyProfile(
@@ -189,12 +192,88 @@ export function updateMyProfile(
     lastName?: string;
     username?: string;
     email?: string;
+    avatarUrl?: string;
     currentPassword?: string;
     newPassword?: string;
   },
   token: string,
 ) {
   return request<AuthResponse>('/users/me', { token, body, method: 'PATCH' });
+}
+
+export function toggleFollowUser(id: string, token: string) {
+  return request<{ following: boolean; user: AdminUser }>(`/users/${id}/follow`, {
+    token,
+    method: 'POST',
+  });
+}
+
+export function getFollowingUsers(token: string) {
+  return request<AdminUser[]>('/users/me/following', { token });
+}
+
+export function getActivityFeed(token: string) {
+  return request<ActivityFeedItem[]>('/users/me/feed', { token });
+}
+
+export function getRecipeCollections(token: string) {
+  return request<RecipeCollection[]>('/users/me/collections', { token });
+}
+
+export function createRecipeCollection(name: string, token: string) {
+  return request<RecipeCollection>('/users/me/collections', {
+    token,
+    body: { name },
+    method: 'POST',
+  });
+}
+
+export function renameRecipeCollection(id: string, name: string, token: string) {
+  return request<RecipeCollection>(`/users/me/collections/${id}`, {
+    token,
+    body: { name },
+    method: 'PATCH',
+  });
+}
+
+export function deleteRecipeCollection(id: string, token: string) {
+  return request<{ success: boolean }>(`/users/me/collections/${id}`, {
+    token,
+    method: 'DELETE',
+  });
+}
+
+export function addRecipeToCollection(collectionId: string, recipeId: string, token: string) {
+  return request<RecipeCollection>(`/users/me/collections/${collectionId}/recipes`, {
+    token,
+    body: { recipeId },
+    method: 'POST',
+  });
+}
+
+export function removeRecipeFromCollection(collectionId: string, recipeId: string, token: string) {
+  return request<RecipeCollection>(`/users/me/collections/${collectionId}/recipes/${recipeId}`, {
+    token,
+    method: 'DELETE',
+  });
+}
+
+export function getNotifications(token: string) {
+  return request<NotificationsResponse>('/users/me/notifications', { token });
+}
+
+export function markNotificationRead(id: string, token: string) {
+  return request<NotificationsResponse['items'][number]>(`/users/me/notifications/${id}/read`, {
+    token,
+    method: 'PATCH',
+  });
+}
+
+export function markAllNotificationsRead(token: string) {
+  return request<{ success: boolean }>('/users/me/notifications/read-all', {
+    token,
+    method: 'PATCH',
+  });
 }
 
 export function createRecipe(

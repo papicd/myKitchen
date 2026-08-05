@@ -72,6 +72,7 @@ export class AuthService {
           email: payload.email,
           isAdmin: payload.isAdmin,
           isRecommended: payload.isRecommended,
+          avatarUrl: payload.avatarUrl ?? null,
         },
       };
     } catch (error) {
@@ -144,6 +145,7 @@ export class AuthService {
     email: string;
     isAdmin: boolean;
     isRecommended: boolean;
+    avatarUrl?: string | null;
   }) {
     const token = this.jwtService.sign({
       sub: user.id,
@@ -153,6 +155,7 @@ export class AuthService {
       email: user.email,
       isAdmin: user.isAdmin,
       isRecommended: user.isRecommended,
+      avatarUrl: user.avatarUrl ?? null,
     });
 
     return { token, user };

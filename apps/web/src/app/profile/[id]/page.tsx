@@ -2,11 +2,18 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Avatar } from "../../../components/Avatar";
 import { PageSpinner } from "../../../components/PageSpinner";
 import { RecipeTypeBadges } from "../../../components/RecipeTypeBadges";
 import { StarRating } from "../../../components/StarRating";
-import { getUserProfile, getUserRecipes, getSavedRecipes, toggleSaveRecipe } from "../../../lib/api";
+import {
+  getSavedRecipes,
+  getUserProfile,
+  getUserRecipes,
+  toggleFollowUser,
+  toggleSaveRecipe,
+} from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { useTranslation } from "../../../lib/useTranslation";
 import { AdminUser, RecipeListItem } from "../../../lib/types";
@@ -14,17 +21,18 @@ import styles from "../../page.module.scss";
 
 export default function UserProfilePage() {
   const params = useParams<{ id: string }>();
-  const { token, isLoggedIn, showApiError, showSuccess } = useAuth();
+  const { user, token, isLoggedIn, showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
   const [profile, setProfile] = useState<AdminUser | null>(null);
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [followBusy, setFollowBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([getUserProfile(params.id), getUserRecipes(params.id)])
+    Promise.all([getUserProfile(params.id, token), getUserRecipes(params.id)])
       .then(([userData, recipeData]) => {
         setProfile(userData);
         setRecipes(recipeData);
@@ -34,7 +42,7 @@ export default function UserProfilePage() {
         showApiError(err, t("cannotLoadProfile"));
       })
       .finally(() => setLoading(false));
-  }, [params.id, showApiError, t]);
+  }, [params.id, showApiError, t, token]);
 
   useEffect(() => {
     if (!token || !isLoggedIn) {
@@ -46,6 +54,8 @@ export default function UserProfilePage() {
       .then((saved) => setSavedIds(saved.map((recipe) => recipe.id)))
       .catch(() => setSavedIds([]));
   }, [isLoggedIn, token]);
+
+  const isOwnProfile = useMemo(() => user?.id === params.id, [params.id, user?.id]);
 
   async function handleSave(recipeId: string) {
     if (!token) return;
@@ -68,6 +78,21 @@ export default function UserProfilePage() {
     }
   }
 
+  async function handleFollow() {
+    if (!token || !profile) return;
+
+    setFollowBusy(true);
+    try {
+      const response = await toggleFollowUser(profile.id, token);
+      setProfile(response.user);
+      showSuccess(t(response.following ? "followedAuthorSuccess" : "unfollowedAuthorSuccess"));
+    } catch (err) {
+      showApiError(err, t("followToggleFailed"));
+    } finally {
+      setFollowBusy(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className={styles.page}>
@@ -81,10 +106,33 @@ export default function UserProfilePage() {
       {error ? <p className={styles.error}>{error}</p> : null}
       {profile ? (
         <header className={styles.pageHeader}>
-          <div>
-            <h1>@{profile.username}</h1>
-            <p>{profile.recipeCount} {t("recipeCount")}</p>
+          <div className={styles.profileHeroCard}>
+            <Avatar
+              name={profile.username}
+              avatarUrl={profile.avatarUrl}
+              className={styles.profileAvatar}
+            />
+            <div>
+              <h1>@{profile.username}</h1>
+              <p>
+                {profile.firstName} {profile.lastName}
+              </p>
+              <p className={styles.smallMuted}>
+                {profile.recipeCount} {t("recipeCount")} · {profile.followersCount ?? 0} {t("followers")}
+              </p>
+            </div>
           </div>
+          {isLoggedIn && !isOwnProfile && profile.isRecommended ? (
+            <div className={styles.actions}>
+              <button className={styles.button} type="button" onClick={handleFollow} disabled={followBusy}>
+                {followBusy
+                  ? t("saving")
+                  : profile.isFollowing
+                    ? t("unfollowAuthor")
+                    : t("followAuthor")}
+              </button>
+            </div>
+          ) : null}
         </header>
       ) : null}
 

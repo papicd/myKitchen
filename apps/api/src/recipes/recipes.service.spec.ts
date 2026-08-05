@@ -42,6 +42,10 @@ describe('RecipesService search normalization', () => {
   };
   let recipeTypeModel: Record<string, jest.Mock>;
   let usersService: { findPublicByIds: jest.Mock; findById: jest.Mock };
+  let notificationsService: {
+    notifyCommentOnRecipe: jest.Mock;
+    notifyFollowedAuthorPost: jest.Mock;
+  };
   let service: RecipesService;
 
   beforeEach(() => {
@@ -59,7 +63,16 @@ describe('RecipesService search normalization', () => {
       findPublicByIds: jest.fn().mockResolvedValue([]),
       findById: jest.fn(),
     };
-    service = new RecipesService(recipeModel as never, recipeTypeModel as never, usersService as never);
+    notificationsService = {
+      notifyCommentOnRecipe: jest.fn(),
+      notifyFollowedAuthorPost: jest.fn(),
+    };
+    service = new RecipesService(
+      recipeModel as never,
+      recipeTypeModel as never,
+      usersService as never,
+      notificationsService as never,
+    );
   });
 
   it('matches browse queries without distinguishing c, č, or ć', async () => {
@@ -80,6 +93,7 @@ describe('RecipesService search normalization', () => {
         email: 'ana@example.com',
         isAdmin: false,
         isRecommended: false,
+        avatarUrl: null,
       },
     ]);
 
@@ -116,6 +130,7 @@ describe('RecipesService search normalization', () => {
         email: 'mika@example.com',
         isAdmin: false,
         isRecommended: false,
+        avatarUrl: null,
       },
       {
         id: String(missAuthorId),
@@ -125,6 +140,7 @@ describe('RecipesService search normalization', () => {
         email: 'lena@example.com',
         isAdmin: false,
         isRecommended: false,
+        avatarUrl: null,
       },
     ]);
 

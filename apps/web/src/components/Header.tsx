@@ -1,21 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Avatar } from "./Avatar";
+import { getNotifications } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useTranslation } from "../lib/useTranslation";
 import styles from "./Header.module.scss";
 
 export function Header() {
-  const { user, isLoggedIn, logout } = useAuth();
+  const { user, token, isLoggedIn, logout } = useAuth();
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const usernameSeed = String(user?.username ?? "").replace(/[^a-z0-9]/gi, "");
   const profileInitials = user
     ? usernameSeed.slice(0, 2).toUpperCase() || "MK"
     : "MK";
 
   const close = () => setMenuOpen(false);
+
+  useEffect(() => {
+    if (!token || !isLoggedIn) {
+      setUnreadCount(0);
+      return;
+    }
+
+    getNotifications(token)
+      .then((response) => setUnreadCount(response.unreadCount))
+      .catch(() => setUnreadCount(0));
+  }, [isLoggedIn, token]);
 
   return (
     <header className={styles.header}>
@@ -57,8 +71,17 @@ export function Header() {
           <div className={styles.actions}>
             {isLoggedIn ? (
               <>
-                <Link className={styles.profile} href="/profile" title={t("profile")} onClick={close}>
-                  {profileInitials}
+                <Link className={styles.profileWrap} href="/profile" title={t("profile")} onClick={close}>
+                  <Avatar
+                    name={user?.username ?? "User"}
+                    avatarUrl={user?.avatarUrl}
+                    className={styles.profile}
+                    imageClassName={styles.profileImage}
+                    fallbackText={profileInitials}
+                  />
+                  {unreadCount > 0 ? (
+                    <span className={styles.notificationBadge}>{unreadCount > 9 ? "9+" : unreadCount}</span>
+                  ) : null}
                 </Link>
                 <button
                   className={styles.logout}
