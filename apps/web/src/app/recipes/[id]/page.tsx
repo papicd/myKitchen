@@ -54,6 +54,38 @@ function formatCommentDate(value: string, locale: "en" | "sr") {
   }).format(date);
 }
 
+function renderStepTextWithFormatting(text: string) {
+  const fragments = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).filter(Boolean);
+  return fragments.map((fragment, index) => {
+    if (fragment.startsWith("**") && fragment.endsWith("**")) {
+      return <strong key={`b-${index}`}>{fragment.slice(2, -2).replace(/\s+/g, " ").trim()}</strong>;
+    }
+
+    if (fragment.startsWith("*") && fragment.endsWith("*")) {
+      return <em key={`i-${index}`}>{fragment.slice(1, -1).replace(/\s+/g, " ").trim()}</em>;
+    }
+
+    return <span key={`t-${index}`}>{fragment.replace(/\s+/g, " ")}</span>;
+  });
+}
+
+function extractStepOrder(text: string) {
+  const trimmed = text.trim();
+  const boldMatch = trimmed.match(/^\*\*([\s\S]+)\*\*$/);
+  const unwrapped = boldMatch ? boldMatch[1].trim() : trimmed;
+  const orderMatch = unwrapped.match(/^(\d+)[.)]?\s*(.*)$/);
+
+  if (!orderMatch) {
+    return { order: null as number | null, text: unwrapped, isBold: Boolean(boldMatch) };
+  }
+
+  return {
+    order: Number(orderMatch[1]),
+    text: orderMatch[2].trim(),
+    isBold: Boolean(boldMatch),
+  };
+}
+
 export default function RecipeDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -323,12 +355,25 @@ export default function RecipeDetailsPage() {
               <section className={styles.section}>
                 <h2 className={styles.sectionTitle}>{t('preparationSteps')}</h2>
                 <ol className={styles.steps}>
-                  {recipe.steps.map((step, idx) => (
-                    <li key={`${step}-${idx}`}>
-                      <span className={styles.stepNumber}>{idx + 1}</span>
-                      <span className={styles.stepText}>{step}</span>
-                    </li>
-                  ))}
+                  {recipe.steps.map((step, idx) => {
+                    const parsedStep = extractStepOrder(step);
+
+                    return (
+                      <li
+                        key={`${step}-${idx}`}
+                        className={parsedStep.order !== null ? styles.stepHeading : ""}
+                      >
+                        <span
+                          className={`${styles.stepNumber} ${parsedStep.order !== null ? "" : styles.stepNumberHidden}`}
+                        >
+                          {parsedStep.order !== null ? parsedStep.order : ""}
+                        </span>
+                        <span className={styles.stepText}>
+                          {renderStepTextWithFormatting(parsedStep.text)}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ol>
               </section>
 

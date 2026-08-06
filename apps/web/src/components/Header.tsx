@@ -26,9 +26,15 @@ export function Header() {
       return;
     }
 
-    getNotifications(token)
-      .then((response) => setUnreadCount(response.unreadCount))
-      .catch(() => setUnreadCount(0));
+    const refreshUnreadCount = () => {
+      getNotifications(token)
+        .then((response) => setUnreadCount(response.unreadCount))
+        .catch(() => setUnreadCount(0));
+    };
+
+    refreshUnreadCount();
+    window.addEventListener("notifications:changed", refreshUnreadCount);
+    return () => window.removeEventListener("notifications:changed", refreshUnreadCount);
   }, [isLoggedIn, token]);
 
   return (
@@ -62,6 +68,7 @@ export function Header() {
             <Link href="/" onClick={close}>{t("home")}</Link>
             <Link href="/recipes" onClick={close}>{t("recipes")}</Link>
             {isLoggedIn ? <Link href="/my-recipes" onClick={close}>{t("myRecipes")}</Link> : null}
+            {isLoggedIn ? <Link href="/collections" onClick={close}>{t("collections")}</Link> : null}
             {isLoggedIn ? <Link href="/find" onClick={close}>{t("findByIngredients")}</Link> : null}
             {isLoggedIn ? <Link href="/add-recipe" onClick={close}>{t("addRecipe")}</Link> : null}
             {user?.isAdmin ? <Link href="/admin/users" onClick={close}>{t("adminPanel")}</Link> : null}
@@ -71,6 +78,12 @@ export function Header() {
           <div className={styles.actions}>
             {isLoggedIn ? (
               <>
+                <Link className={styles.notificationWrap} href="/notifications" title={t("notifications")} onClick={close}>
+                  <span aria-hidden="true">🔔</span>
+                  {unreadCount > 0 ? (
+                    <span className={styles.notificationBadge}>{unreadCount > 9 ? "9+" : unreadCount}</span>
+                  ) : null}
+                </Link>
                 <Link className={styles.profileWrap} href="/profile" title={t("profile")} onClick={close}>
                   <Avatar
                     name={user?.username ?? "User"}
@@ -79,9 +92,6 @@ export function Header() {
                     imageClassName={styles.profileImage}
                     fallbackText={profileInitials}
                   />
-                  {unreadCount > 0 ? (
-                    <span className={styles.notificationBadge}>{unreadCount > 9 ? "9+" : unreadCount}</span>
-                  ) : null}
                 </Link>
                 <button
                   className={styles.logout}

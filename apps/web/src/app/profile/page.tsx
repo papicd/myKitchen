@@ -21,6 +21,10 @@ import { useTranslation } from "../../lib/useTranslation";
 import { AdminUser, RecipeListItem, UserNotification } from "../../lib/types";
 import styles from "../page.module.scss";
 
+function dispatchNotificationsChanged() {
+  window.dispatchEvent(new Event("notifications:changed"));
+}
+
 type ProfileForm = {
   firstName: string;
   lastName: string;
@@ -184,6 +188,7 @@ export default function ProfilePage() {
       const updated = await markNotificationRead(notificationId, token);
       setNotifications((current) => current.map((item) => (item.id === notificationId ? updated : item)));
       setUnreadCount((current) => Math.max(0, current - 1));
+      dispatchNotificationsChanged();
     } catch (err) {
       showApiError(err, t("notificationReadFailed"));
     } finally {
@@ -199,6 +204,7 @@ export default function ProfilePage() {
       await markAllNotificationsRead(token);
       setNotifications((current) => current.map((item) => ({ ...item, isRead: true })));
       setUnreadCount(0);
+      dispatchNotificationsChanged();
       showSuccess(t("notificationsMarkedRead"));
     } catch (err) {
       showApiError(err, t("notificationReadFailed"));
@@ -207,10 +213,29 @@ export default function ProfilePage() {
     }
   }
 
+  function getNotificationTitle(notification: UserNotification) {
+    if (notification.type === "comment") {
+      return t("notificationCommentTitle");
+    }
+    if (notification.type === "followed_author_post") {
+      return t("notificationFollowedPostTitle");
+    }
+    if (notification.type === "follow") {
+      return t("notificationFollowTitle");
+    }
+    if (notification.type === "recipe_rated") {
+      return t("notificationRecipeRatedTitle");
+    }
+    if (notification.type === "saved_recipe_updated") {
+      return t("notificationSavedRecipeUpdatedTitle");
+    }
+    return t("notificationRecipeSavedTitle");
+  }
+
   if (!isLoggedIn || !user) {
     return (
       <main className={styles.page}>
-        <section className={styles.card}>
+        <section id="notifications" className={styles.card}>
           <h1>{t("profileNotAvailable")}</h1>
           <div className={styles.actions}>
             <Link href="/login">{t("login")}</Link>
@@ -460,9 +485,7 @@ export default function ProfilePage() {
                     />
                     <div>
                       <strong>
-                        {notification.type === "comment"
-                          ? t("notificationCommentTitle")
-                          : t("notificationFollowedPostTitle")}
+                        {getNotificationTitle(notification)}
                       </strong>
                       <p className={styles.smallMuted}>
                         @{notification.actor.username}

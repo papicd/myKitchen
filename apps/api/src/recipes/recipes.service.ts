@@ -73,7 +73,6 @@ export class RecipesService implements OnApplicationBootstrap {
     await this.repairRecipeTypeReferences();
     await this.seedRecipes();
     await this.ensureRecipesHaveDefaultType();
-    await this.enrichRecipesWithMedia();
     await this.syncRecommendedAuthorFlags();
   }
 
@@ -451,6 +450,13 @@ export class RecipesService implements OnApplicationBootstrap {
       throw new NotFoundException('Recept nije moguce izvrsiti');
     }
 
+    await this.notificationsService.notifySavedRecipeUpdated({
+      actorUserId: userId,
+      userIds: await this.usersService.getUserIdsWithSavedRecipe(id),
+      recipeId: id,
+      recipeTitle: updated.title,
+    });
+
     return this.toDetailsResponse(updated, userId);
   }
 
@@ -481,6 +487,14 @@ export class RecipesService implements OnApplicationBootstrap {
 
     recipe.ratings = ratings;
     await recipe.save();
+
+    await this.notificationsService.notifyRecipeRated({
+      userId: String(recipe.createdBy),
+      actorUserId: userId,
+      recipeId: String((recipe as Recipe & { _id?: unknown })._id),
+      recipeTitle: recipe.title,
+      ratingValue: value,
+    });
 
     return this.toDetailsResponse(recipe, userId);
   }
@@ -532,13 +546,28 @@ export class RecipesService implements OnApplicationBootstrap {
   }
 
   async toggleSavedRecipe(userId: string, recipeId: string) {
-    const recipe = await this.recipeModel.findById(recipeId, { _id: 1 });
+    const recipe = await this.recipeModel.findById(recipeId, {
+      _id: 1,
+      createdBy: 1,
+      title: 1,
+    });
 
     if (!recipe) {
       throw new NotFoundException('Recept nije pronadjen');
     }
 
-    return this.usersService.toggleSavedRecipe(userId, recipeId);
+    const result = await this.usersService.toggleSavedRecipe(userId, recipeId);
+
+    if (result.saved) {
+      await this.notificationsService.notifyRecipeSaved({
+        userId: String(recipe.createdBy),
+        actorUserId: userId,
+        recipeId: String((recipe as Recipe & { _id?: unknown })._id),
+        recipeTitle: recipe.title,
+      });
+    }
+
+    return result;
   }
 
   async searchByGroceries(query: string, typeIds: string[] = []) {

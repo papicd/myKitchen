@@ -79,7 +79,13 @@ export type ActivityFeedItem = {
 
 export type UserNotification = {
   id: string;
-  type: 'comment' | 'followed_author_post';
+  type:
+    | 'comment'
+    | 'followed_author_post'
+    | 'follow'
+    | 'recipe_rated'
+    | 'recipe_saved'
+    | 'saved_recipe_updated';
   createdAt: string;
   isRead: boolean;
   actor: RecipeAuthor;
@@ -88,6 +94,7 @@ export type UserNotification = {
     title: string;
   };
   commentText?: string;
+  ratingValue?: number;
 };
 
 export type NotificationsResponse = {

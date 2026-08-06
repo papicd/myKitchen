@@ -3,14 +3,31 @@ import { HydratedDocument, Types } from 'mongoose';
 
 export type NotificationDocument = HydratedDocument<Notification>;
 
-export type NotificationType = 'comment' | 'followed_author_post';
+export type NotificationType =
+  | 'comment'
+  | 'followed_author_post'
+  | 'follow'
+  | 'recipe_rated'
+  | 'recipe_saved'
+  | 'saved_recipe_updated';
 
 @Schema({ timestamps: true })
 export class Notification {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   userId: Types.ObjectId;
 
-  @Prop({ type: String, enum: ['comment', 'followed_author_post'], required: true })
+  @Prop({
+    type: String,
+    enum: [
+      'comment',
+      'followed_author_post',
+      'follow',
+      'recipe_rated',
+      'recipe_saved',
+      'saved_recipe_updated',
+    ],
+    required: true,
+  })
   type: NotificationType;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -24,6 +41,9 @@ export class Notification {
 
   @Prop({ type: String, trim: true, default: '' })
   commentText: string;
+
+  @Prop({ type: Number, default: null })
+  ratingValue: number | null;
 
   @Prop({ default: false })
   isRead: boolean;

@@ -94,15 +94,21 @@
 }
 
 .tabBtn {
-  min-height: 40px;
+  min-height: 42px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 0 14px;
-  background: var(--panel);
+  padding: 0 16px;
+  background: linear-gradient(180deg, var(--panel), var(--panel-soft));
   color: var(--foreground);
   font: inherit;
   font-weight: 800;
-  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  box-shadow: 0 8px 18px rgba(31, 37, 40, 0.05);
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .tabBtnActive {
@@ -173,14 +179,27 @@
 }
 
 .subtleButton {
-  min-height: 36px;
+  min-height: 38px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 0 12px;
-  background: var(--white);
+  padding: 0 14px;
+  background: linear-gradient(180deg, var(--white), var(--panel-soft));
   color: var(--foreground);
   font: inherit;
   font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+
+  &:hover:enabled {
+    border-color: var(--primary-alpha-28);
+    background: var(--accent-soft);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 }
 
 .collectionRecipeList {
@@ -192,11 +211,148 @@
 .collectionRecipeItem {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  padding: 12px;
+  padding: 14px;
   border-radius: 10px;
   background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+}
+
+.collectionCreateCard {
+  align-items: flex-end;
+}
+
+.collectionInput,
+.collectionSelect {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 12px;
+  background: var(--white);
+  color: var(--foreground);
+  font: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-alpha-18);
+  }
+}
+
+.collectionSelect {
+  width: min(260px, 100%);
+  min-width: 180px;
+}
+
+.collectionPickerRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.collectionPicker {
+  position: relative;
+  min-width: min(260px, 100%);
+}
+
+.collectionPickerTrigger {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--primary-alpha-28);
+  border-radius: 12px;
+  padding: 0 12px;
+  background: linear-gradient(180deg, var(--white), var(--panel-soft));
+  color: var(--foreground);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: var(--primary-alpha-45);
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--primary-alpha-18);
+  }
+}
+
+.collectionPickerMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 3;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--white);
+  box-shadow: 0 16px 30px var(--ink-alpha-12);
+  padding: 6px;
+  display: grid;
+  gap: 4px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.collectionPickerItem {
+  width: 100%;
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  padding: 0 10px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-subtle);
+  }
+}
+
+.collectionPickerItemActive {
+  background: var(--accent-soft);
+  color: var(--primary);
+}
+
+.collectionAddButton,
+.collectionViewButton {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 0 14px;
+  border: 1px solid var(--primary-alpha-28);
+  background: var(--accent-soft);
+  color: var(--primary);
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px var(--primary-alpha-18);
+  }
+}
+
+.collectionAddButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .unreadDot {

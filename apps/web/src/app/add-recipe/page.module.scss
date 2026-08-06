@@ -239,6 +239,35 @@
   font-weight: 800;
 }
 
+.textFormatToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.textFormatButton {
+  min-height: 30px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: var(--white);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    border-color: var(--primary-alpha-35);
+    background: var(--accent-soft);
+  }
+}
+
 .fieldBadge {
   min-height: 24px;
   display: inline-flex;

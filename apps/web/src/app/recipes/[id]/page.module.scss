@@ -226,10 +226,21 @@
   font-weight: 900;
 }
 
+.stepNumberHidden {
+  visibility: hidden;
+}
+
 .stepText {
   margin-top: 5px;
   color: #2f3c39;
   line-height: 1.75;
+}
+
+.stepHeading .stepText {
+  margin-top: 0;
+  font-weight: 800;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .mediaGrid {

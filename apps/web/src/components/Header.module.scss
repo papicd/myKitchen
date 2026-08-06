@@ -88,6 +88,18 @@
   position: relative;
 }
 
+.notificationWrap {
+  position: relative;
+  min-width: 42px;
+  width: 42px;
+  height: 42px;
+  padding: 0 !important;
+  border: 1px solid var(--border);
+  border-radius: 12px !important;
+  background: var(--panel);
+  font-size: 18px;
+}
+
 .nav a,
 .actions a,
 .logout {
@@ -151,8 +163,8 @@
 
 .notificationBadge {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: -6px;
+  right: -6px;
   min-width: 20px;
   height: 20px;
   padding: 0 5px;

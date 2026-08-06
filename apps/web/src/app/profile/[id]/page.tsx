@@ -122,7 +122,7 @@ export default function UserProfilePage() {
               </p>
             </div>
           </div>
-          {isLoggedIn && !isOwnProfile && profile.isRecommended ? (
+          {isLoggedIn && !isOwnProfile ? (
             <div className={styles.actions}>
               <button className={styles.button} type="button" onClick={handleFollow} disabled={followBusy}>
                 {followBusy

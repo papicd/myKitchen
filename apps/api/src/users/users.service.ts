@@ -59,12 +59,19 @@ export type ActivityFeedItem = {
 
 export type UserNotificationOutput = {
   id: string;
-  type: 'comment' | 'followed_author_post';
+  type:
+    | 'comment'
+    | 'followed_author_post'
+    | 'follow'
+    | 'recipe_rated'
+    | 'recipe_saved'
+    | 'saved_recipe_updated';
   createdAt: string;
   isRead: boolean;
   actor: { id: string };
   recipe?: { id: string; title: string };
   commentText?: string;
+  ratingValue?: number;
 };
 
 @Injectable()
@@ -295,6 +302,14 @@ export class UsersService implements OnApplicationBootstrap {
     return (user.savedRecipes ?? []).map((id) => String(id));
   }
 
+  async getUserIdsWithSavedRecipe(recipeId: string) {
+    const users = await this.userModel.find(
+      { savedRecipes: new Types.ObjectId(recipeId) },
+      { _id: 1 },
+    );
+    return users.map((user) => String((user as User & { _id?: unknown })._id));
+  }
+
   async toggleSavedRecipe(userId: string, recipeId: string) {
     const user = await this.userModel.findById(userId);
 
@@ -421,15 +436,18 @@ export class UsersService implements OnApplicationBootstrap {
 
     const isFollowing = (currentUser.following ?? []).some((id) => String(id) === targetUserId);
 
-    if (!isFollowing && !targetUser.isRecommended) {
-      throw new BadRequestException('Mozete pratiti samo preporucene autore');
-    }
-
     currentUser.following = isFollowing
       ? (currentUser.following ?? []).filter((id) => String(id) !== targetUserId)
       : [...(currentUser.following ?? []), new Types.ObjectId(targetUserId)];
 
     await currentUser.save();
+
+    if (!isFollowing) {
+      await this.notificationsService.notifyUserFollowed({
+        userId: targetUserId,
+        actorUserId: currentUserId,
+      });
+    }
 
     return {
       following: !isFollowing,
@@ -648,6 +666,7 @@ export class UsersService implements OnApplicationBootstrap {
           actor: { id: String(item.actorUserId) },
           ...(item.recipeId ? { recipe: { id: String(item.recipeId), title: item.recipeTitle } } : {}),
           ...(item.commentText ? { commentText: item.commentText } : {}),
+          ...(typeof item.ratingValue === 'number' ? { ratingValue: item.ratingValue } : {}),
         })),
       ),
       unreadCount,
@@ -672,6 +691,9 @@ export class UsersService implements OnApplicationBootstrap {
           ? { recipe: { id: String(notification.recipeId), title: notification.recipeTitle } }
           : {}),
         ...(notification.commentText ? { commentText: notification.commentText } : {}),
+        ...(typeof notification.ratingValue === 'number'
+          ? { ratingValue: notification.ratingValue }
+          : {}),
       },
     ]);
 
