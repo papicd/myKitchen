@@ -415,6 +415,122 @@
   }
 }
 
+.homeFeedSection {
+  margin-top: 36px;
+  display: grid;
+  gap: 14px;
+}
+
+.homeFeedEmpty {
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  padding: 18px;
+  background: linear-gradient(180deg, var(--surface-glass-96), var(--white));
+  display: grid;
+  gap: 12px;
+
+  p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  a {
+    width: fit-content;
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border: 1px solid var(--border-soft);
+    padding: 0 12px;
+    color: var(--primary);
+    font-weight: 900;
+    text-decoration: none;
+    background: var(--white);
+  }
+}
+
+.homeFeedList {
+  display: grid;
+  gap: 10px;
+}
+
+.homeFeedCard {
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  padding: 14px;
+  background: linear-gradient(180deg, var(--surface-glass-96), var(--white));
+  box-shadow: 0 12px 24px var(--ink-alpha-06);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+
+  > a {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid var(--border-soft);
+    padding: 0 10px;
+    text-decoration: none;
+    color: var(--foreground);
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+    background: var(--white);
+  }
+}
+
+.homeFeedMeta {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+
+  strong {
+    display: block;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  p {
+    margin: 2px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 800;
+  }
+}
+
+.homeFeedAvatar {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border-soft);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--white);
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 900;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
 @media (max-width: 1120px) {
   .heroPanel {
     grid-template-columns: 1fr;
@@ -436,6 +552,14 @@
     align-items: flex-start;
 
     a {
+      width: 100%;
+    }
+  }
+
+  .homeFeedCard {
+    flex-direction: column;
+
+    > a {
       width: 100%;
     }
   }

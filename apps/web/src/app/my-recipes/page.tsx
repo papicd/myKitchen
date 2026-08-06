@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { Avatar } from "../../components/Avatar";
 import { PageSpinner } from "../../components/PageSpinner";
 import { RecipeTypeBadges } from "../../components/RecipeTypeBadges";
 import { StarRating } from "../../components/StarRating";
 import {
+  addRecipeToCollection,
   getRatedRecipes,
+  getRecipeCollections,
   getSavedRecipes,
   rateRecipe,
   toggleSaveRecipe,
@@ -24,10 +27,14 @@ export default function MyRecipesPage() {
   const [tab, setTab] = useState<Tab>("saved");
   const [savedRecipes, setSavedRecipes] = useState<RecipeListItem[]>([]);
   const [ratedRecipes, setRatedRecipes] = useState<RecipeListItem[]>([]);
+  const [collections, setCollections] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busySaveId, setBusySaveId] = useState<string | null>(null);
   const [busyRateId, setBusyRateId] = useState<string | null>(null);
+  const [busyCollectionId, setBusyCollectionId] = useState<string | null>(null);
+  const [selectedCollectionByRecipe, setSelectedCollectionByRecipe] = useState<Record<string, string>>({});
+  const [openCollectionPickerRecipeId, setOpenCollectionPickerRecipeId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token || !isLoggedIn) {
@@ -35,10 +42,15 @@ export default function MyRecipesPage() {
       return;
     }
 
-    Promise.all([getSavedRecipes(token), getRatedRecipes(token)])
-      .then(([saved, rated]) => {
+    Promise.all([
+      getSavedRecipes(token),
+      getRatedRecipes(token),
+      getRecipeCollections(token),
+    ])
+      .then(([saved, rated, collectionItems]) => {
         setSavedRecipes(saved);
         setRatedRecipes(rated);
+        setCollections(collectionItems.map((collection) => ({ id: collection.id, name: collection.name })));
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : t("cannotLoadRecipe"));
@@ -48,7 +60,6 @@ export default function MyRecipesPage() {
   }, [isLoggedIn, showApiError, token, t]);
 
   const savedIds = useMemo(() => savedRecipes.map((recipe) => recipe.id), [savedRecipes]);
-
   async function handleToggleSave(recipeId: string) {
     if (!token) return;
 
@@ -99,6 +110,30 @@ export default function MyRecipesPage() {
     }
   }
 
+  async function handleAddToCollection(recipeId: string) {
+    if (!token) return;
+    const collectionId = selectedCollectionByRecipe[recipeId];
+    if (!collectionId) return;
+
+    setBusyCollectionId(collectionId);
+    try {
+      const updated = await addRecipeToCollection(collectionId, recipeId, token);
+      setCollections((prev) => prev.map((collection) => (collection.id === collectionId ? updated : collection)));
+      showSuccess(t("recipeAddedToNamedCollection", { name: updated.name }));
+    } catch (err) {
+      showApiError(err, t("collectionAddRecipeFailed"));
+    } finally {
+      setBusyCollectionId(null);
+    }
+  }
+
+  function getSelectedCollectionName(recipeId: string) {
+    const selectedId = selectedCollectionByRecipe[recipeId];
+    if (!selectedId) return t("chooseCollection");
+    const selected = collections.find((collection) => collection.id === selectedId);
+    return selected?.name ?? t("chooseCollection");
+  }
+
   if (!isLoggedIn) {
     return (
       <main className={styles.page}>
@@ -139,20 +174,18 @@ export default function MyRecipesPage() {
           >
             {t("ratedRecipes", { count: ratedRecipes.length })}
           </button>
-        </div>
+          </div>
 
         {error ? <p className={styles.error}>{error}</p> : null}
         {loading ? <PageSpinner label={t("loadingMyRecipes")} /> : null}
 
-        {!loading && recipes.length === 0 ? (
+        {!loading && (tab === "saved" || tab === "rated") && recipes.length === 0 ? (
           <p className={styles.muted}>
-            {tab === "saved"
-              ? t("noSavedRecipes")
-              : t("noRatedRecipes")}
+            {tab === "saved" ? t("noSavedRecipes") : t("noRatedRecipes")}
           </p>
         ) : null}
 
-        {!loading && recipes.length > 0 ? (
+        {!loading && (tab === "saved" || tab === "rated") && recipes.length > 0 ? (
           <div className={styles.grid}>
             {recipes.map((recipe) => (
               <article key={recipe.id} className={`${styles.card} ${styles.recipeCard}`}>
@@ -189,9 +222,11 @@ export default function MyRecipesPage() {
                 </Link>
                 <div className={styles.cardFooter}>
                   <Link href={`/profile/${recipe.author.id}`} className={styles.authorLink}>
-                    <span className={styles.avatar}>
-                      {`${recipe.author.username}`.slice(0, 1).toUpperCase()}
-                    </span>
+                    <Avatar
+                      name={recipe.author.username}
+                      avatarUrl={recipe.author.avatarUrl}
+                      className={styles.avatar}
+                    />
                     <span>@{recipe.author.username}</span>
                   </Link>
                   <div className={styles.cardActions}>
@@ -209,10 +244,62 @@ export default function MyRecipesPage() {
                     </button>
                   </div>
                 </div>
+                {tab === "saved" && collections.length > 0 ? (
+                  <div className={styles.collectionPickerRow}>
+                    <div className={styles.collectionPicker}>
+                      <button
+                        type="button"
+                        className={styles.collectionPickerTrigger}
+                        onClick={() =>
+                          setOpenCollectionPickerRecipeId((current) => (current === recipe.id ? null : recipe.id))
+                        }
+                      >
+                        <span>{getSelectedCollectionName(recipe.id)}</span>
+                        <span aria-hidden="true">▾</span>
+                      </button>
+                      {openCollectionPickerRecipeId === recipe.id ? (
+                        <div className={styles.collectionPickerMenu}>
+                          {collections.map((collection) => (
+                            <button
+                              key={collection.id}
+                              type="button"
+                              className={`${styles.collectionPickerItem} ${
+                                selectedCollectionByRecipe[recipe.id] === collection.id
+                                  ? styles.collectionPickerItemActive
+                                  : ""
+                              }`}
+                              onClick={() => {
+                                setSelectedCollectionByRecipe((current) => ({
+                                  ...current,
+                                  [recipe.id]: collection.id,
+                                }));
+                                setOpenCollectionPickerRecipeId(null);
+                              }}
+                            >
+                              {collection.name}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.collectionAddButton}
+                      onClick={() => {
+                        setOpenCollectionPickerRecipeId(null);
+                        handleAddToCollection(recipe.id);
+                      }}
+                      disabled={!selectedCollectionByRecipe[recipe.id] || busyCollectionId !== null}
+                    >
+                      {t("addToCollection")}
+                    </button>
+                  </div>
+                ) : null}
               </article>
             ))}
           </div>
         ) : null}
+
       </section>
     </main>
   );

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { RecipeTypeMultiSelect } from "../../components/RecipeTypeMultiSelect";
 import { SuccessDialog } from "../../components/SuccessDialog";
 import { createRecipe, createRecipeType, getRecipeTypes } from "../../lib/api";
@@ -28,6 +28,14 @@ function parseList(value: FormDataEntryValue | null, separator: RegExp) {
     .filter(Boolean);
 }
 
+function parseTextList(value: string, separator: RegExp) {
+  return value
+    .trim()
+    .split(separator)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export default function AddRecipePage() {
   const router = useRouter();
   const { user, token, isLoggedIn, showApiError, showSuccess } = useAuth();
@@ -47,6 +55,8 @@ export default function AddRecipePage() {
   const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
   const [newTypeName, setNewTypeName] = useState("");
   const [newTypeColor, setNewTypeColor] = useState("#22C55E");
+  const [stepsValue, setStepsValue] = useState("");
+  const stepsRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -84,7 +94,7 @@ export default function AddRecipePage() {
     const shortDescription = normalizeText(formData.get("shortDescription"));
     const description = normalizeText(formData.get("description"));
     const ingredients = parseList(formData.get("ingredients"), INGREDIENTS_SEPARATOR);
-    const steps = parseList(formData.get("steps"), STEPS_SEPARATOR);
+    const steps = parseTextList(stepsValue, STEPS_SEPARATOR);
     const preparationTime = normalizeText(formData.get("preparationTime"));
     const servings = normalizeText(formData.get("servings"));
 
@@ -121,8 +131,8 @@ export default function AddRecipePage() {
           ...(preparationTime ? { preparationTime } : {}),
           ...(servings ? { servings } : {}),
           typeIds: selectedTypeIds,
-          media: mediaItems.length > 0 ? mediaItems : undefined,
-          links: linkItems.length > 0 ? linkItems : undefined,
+          media: mediaItems,
+          links: linkItems,
         },
         token,
       );
@@ -133,6 +143,7 @@ export default function AddRecipePage() {
       setLinkLabel("");
       setLinkUrl("");
       setSelectedTypeIds([]);
+      setStepsValue("");
       showSuccess(t("recipeSaved"));
       setShowSuccessDialog(true);
     } catch (createError) {
@@ -216,6 +227,25 @@ export default function AddRecipePage() {
 
   function removeMedia(index: number) {
     setMediaItems(mediaItems.filter((_, i) => i !== index));
+  }
+
+  function formatSelectedStepText(style: "bold" | "italic") {
+    const textarea = stepsRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    if (start === end) return;
+
+    const marker = style === "bold" ? "**" : "*";
+    const selected = stepsValue.slice(start, end);
+    const nextValue = `${stepsValue.slice(0, start)}${marker}${selected}${marker}${stepsValue.slice(end)}`;
+    setStepsValue(nextValue);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + marker.length, end + marker.length);
+    });
   }
 
   function addLink() {
@@ -376,10 +406,22 @@ export default function AddRecipePage() {
                     <label htmlFor="steps">{t("stepsLabel")}</label>
                     <span className={`${styles.fieldBadge} ${styles.fieldBadgeRequired}`}>{t("requiredBadge")}</span>
                   </div>
+                  <div className={styles.textFormatToolbar}>
+                    <span>{t("formatSelection")}</span>
+                    <button type="button" className={styles.textFormatButton} onClick={() => formatSelectedStepText("bold")}>
+                      <strong>B</strong> {t("bold")}
+                    </button>
+                    <button type="button" className={styles.textFormatButton} onClick={() => formatSelectedStepText("italic")}>
+                      <em>I</em> {t("italic")}
+                    </button>
+                  </div>
                   <textarea
                     className={styles.textarea}
                     id="steps"
                     name="steps"
+                    ref={stepsRef}
+                    value={stepsValue}
+                    onChange={(event) => setStepsValue(event.target.value)}
                     placeholder={t("stepsPlaceholder")}
                     required
                   />

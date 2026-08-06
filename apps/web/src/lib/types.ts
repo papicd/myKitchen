@@ -6,10 +6,14 @@ export type User = {
   email: string;
   isAdmin: boolean;
   isRecommended: boolean;
+  avatarUrl?: string | null;
 };
 
 export type AdminUser = User & {
   recipeCount: number;
+  followingCount?: number;
+  followersCount?: number;
+  isFollowing?: boolean;
 };
 
 export type PaginatedAdminUsers = {
@@ -51,6 +55,51 @@ export type RecipeAuthor = {
   email: string;
   isAdmin: boolean;
   isRecommended: boolean;
+  avatarUrl?: string | null;
+};
+
+export type RecipeCollection = {
+  id: string;
+  name: string;
+  recipeIds: string[];
+};
+
+export type ActivityFeedItem = {
+  id: string;
+  type: 'recipe_created' | 'recipe_rated' | 'recipe_commented';
+  createdAt: string;
+  actor: RecipeAuthor;
+  recipe: {
+    id: string;
+    title: string;
+  };
+  ratingValue?: number;
+  commentText?: string;
+};
+
+export type UserNotification = {
+  id: string;
+  type:
+    | 'comment'
+    | 'followed_author_post'
+    | 'follow'
+    | 'recipe_rated'
+    | 'recipe_saved'
+    | 'saved_recipe_updated';
+  createdAt: string;
+  isRead: boolean;
+  actor: RecipeAuthor;
+  recipe?: {
+    id: string;
+    title: string;
+  };
+  commentText?: string;
+  ratingValue?: number;
+};
+
+export type NotificationsResponse = {
+  items: UserNotification[];
+  unreadCount: number;
 };
 
 export type RecipeComment = {

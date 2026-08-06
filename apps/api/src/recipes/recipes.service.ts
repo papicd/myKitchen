@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
 import {
   buildAccentInsensitivePattern,
@@ -63,6 +64,7 @@ export class RecipesService implements OnApplicationBootstrap {
     @InjectModel(Recipe.name) private readonly recipeModel: Model<Recipe>,
     @InjectModel(RecipeType.name) private readonly recipeTypeModel: Model<RecipeType>,
     private readonly usersService: UsersService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -71,7 +73,6 @@ export class RecipesService implements OnApplicationBootstrap {
     await this.repairRecipeTypeReferences();
     await this.seedRecipes();
     await this.ensureRecipesHaveDefaultType();
-    await this.enrichRecipesWithMedia();
     await this.syncRecommendedAuthorFlags();
   }
 
@@ -378,6 +379,13 @@ export class RecipesService implements OnApplicationBootstrap {
       createdBy: new Types.ObjectId(userId),
     });
 
+    await this.notificationsService.notifyFollowedAuthorPost({
+      actorUserId: userId,
+      followerIds: await this.usersService.getFollowerIds(userId),
+      recipeId: String((recipe as Recipe & { _id?: unknown })._id),
+      recipeTitle: recipe.title,
+    });
+
     return this.toDetailsResponse(recipe, userId);
   }
 
@@ -442,6 +450,13 @@ export class RecipesService implements OnApplicationBootstrap {
       throw new NotFoundException('Recept nije moguce izvrsiti');
     }
 
+    await this.notificationsService.notifySavedRecipeUpdated({
+      actorUserId: userId,
+      userIds: await this.usersService.getUserIdsWithSavedRecipe(id),
+      recipeId: id,
+      recipeTitle: updated.title,
+    });
+
     return this.toDetailsResponse(updated, userId);
   }
 
@@ -465,12 +480,21 @@ export class RecipesService implements OnApplicationBootstrap {
 
     if (existingRating) {
       existingRating.value = value;
+      existingRating.createdAt = new Date();
     } else {
-      ratings.push({ userId: new Types.ObjectId(userId), value });
+      ratings.push({ userId: new Types.ObjectId(userId), value, createdAt: new Date() });
     }
 
     recipe.ratings = ratings;
     await recipe.save();
+
+    await this.notificationsService.notifyRecipeRated({
+      userId: String(recipe.createdBy),
+      actorUserId: userId,
+      recipeId: String((recipe as Recipe & { _id?: unknown })._id),
+      recipeTitle: recipe.title,
+      ratingValue: value,
+    });
 
     return this.toDetailsResponse(recipe, userId);
   }
@@ -510,17 +534,40 @@ export class RecipesService implements OnApplicationBootstrap {
 
     await recipe.save();
 
+    await this.notificationsService.notifyCommentOnRecipe({
+      userId: String(recipe.createdBy),
+      actorUserId: userId,
+      recipeId: String((recipe as Recipe & { _id?: unknown })._id),
+      recipeTitle: recipe.title,
+      commentText: text,
+    });
+
     return this.toDetailsResponse(recipe, userId);
   }
 
   async toggleSavedRecipe(userId: string, recipeId: string) {
-    const recipe = await this.recipeModel.findById(recipeId, { _id: 1 });
+    const recipe = await this.recipeModel.findById(recipeId, {
+      _id: 1,
+      createdBy: 1,
+      title: 1,
+    });
 
     if (!recipe) {
       throw new NotFoundException('Recept nije pronadjen');
     }
 
-    return this.usersService.toggleSavedRecipe(userId, recipeId);
+    const result = await this.usersService.toggleSavedRecipe(userId, recipeId);
+
+    if (result.saved) {
+      await this.notificationsService.notifyRecipeSaved({
+        userId: String(recipe.createdBy),
+        actorUserId: userId,
+        recipeId: String((recipe as Recipe & { _id?: unknown })._id),
+        recipeTitle: recipe.title,
+      });
+    }
+
+    return result;
   }
 
   async searchByGroceries(query: string, typeIds: string[] = []) {
@@ -1204,7 +1251,7 @@ export class RecipesService implements OnApplicationBootstrap {
 
     return items.map((item) => ({
       ...item,
-      author: authorMap.get(item.author.id) ?? { id: item.author.id, firstName: 'Nepoznat', lastName: '', username: 'korisnik', email: '', isAdmin: false, isRecommended: false },
+      author: authorMap.get(item.author.id) ?? { id: item.author.id, firstName: 'Nepoznat', lastName: '', username: 'korisnik', email: '', isAdmin: false, isRecommended: false, avatarUrl: null },
     }));
   }
 
@@ -1222,7 +1269,7 @@ export class RecipesService implements OnApplicationBootstrap {
       ...item,
       comments: item.comments.map((comment) => ({
         ...comment,
-        author: authorMap.get(comment.author.id) ?? { id: comment.author.id, firstName: 'Nepoznat', lastName: '', username: 'korisnik', email: '', isAdmin: false, isRecommended: false },
+        author: authorMap.get(comment.author.id) ?? { id: comment.author.id, firstName: 'Nepoznat', lastName: '', username: 'korisnik', email: '', isAdmin: false, isRecommended: false, avatarUrl: null },
       })),
     };
   }
@@ -1308,7 +1355,7 @@ export class RecipesService implements OnApplicationBootstrap {
     );
 
     return {
-      ...this.toListItem(recipe),
+      ...this.toListItem(recipe, currentUserId),
       description: recipe.description,
       steps: recipe.steps,
       createdBy: String(recipe.createdBy),

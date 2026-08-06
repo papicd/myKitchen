@@ -28,6 +28,12 @@ describe('UsersService profile updates', () => {
   let recipeModel: {
     aggregate: jest.Mock;
   };
+  let notificationsService: {
+    findByUser: jest.Mock;
+    getUnreadCount: jest.Mock;
+    markAsRead: jest.Mock;
+    markAllAsRead: jest.Mock;
+  };
   let service: UsersService;
 
   beforeEach(() => {
@@ -40,7 +46,13 @@ describe('UsersService profile updates', () => {
     recipeModel = {
       aggregate: jest.fn(),
     };
-    service = new UsersService(userModel as never, recipeModel as never);
+    notificationsService = {
+      findByUser: jest.fn(),
+      getUnreadCount: jest.fn(),
+      markAsRead: jest.fn(),
+      markAllAsRead: jest.fn(),
+    };
+    service = new UsersService(userModel as never, recipeModel as never, notificationsService as never);
   });
 
   it('updates editable fields with trimming and normalized email/username', async () => {

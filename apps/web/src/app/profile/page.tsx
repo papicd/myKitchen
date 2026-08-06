@@ -2,20 +2,35 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { Avatar } from "../../components/Avatar";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PageSpinner } from "../../components/PageSpinner";
 import { RecipeTypeBadges } from "../../components/RecipeTypeBadges";
-import { deleteRecipe, getMyRecipes, updateMyProfile } from "../../lib/api";
+import {
+  deleteRecipe,
+  getFollowingUsers,
+  getMyRecipes,
+  getNotifications,
+  getUserProfile,
+  markAllNotificationsRead,
+  markNotificationRead,
+  updateMyProfile,
+} from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useTranslation } from "../../lib/useTranslation";
-import { RecipeListItem } from "../../lib/types";
+import { AdminUser, RecipeListItem, UserNotification } from "../../lib/types";
 import styles from "../page.module.scss";
+
+function dispatchNotificationsChanged() {
+  window.dispatchEvent(new Event("notifications:changed"));
+}
 
 type ProfileForm = {
   firstName: string;
   lastName: string;
   username: string;
   email: string;
+  avatarUrl: string;
 };
 
 type PasswordForm = {
@@ -28,15 +43,22 @@ export default function ProfilePage() {
   const { user, token, isLoggedIn, saveAuth, showApiError, showSuccess } = useAuth();
   const { t } = useTranslation();
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
+  const [profileSummary, setProfileSummary] = useState<AdminUser | null>(null);
+  const [followingUsers, setFollowingUsers] = useState<AdminUser[]>([]);
+  const [notifications, setNotifications] = useState<UserNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [recipeError, setRecipeError] = useState("");
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
+  const [busyNotificationId, setBusyNotificationId] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState<ProfileForm>({
     firstName: "",
     lastName: "",
     username: "",
     email: "",
+    avatarUrl: "",
   });
   const [passwordForm, setPasswordForm] = useState<PasswordForm>({
     currentPassword: "",
@@ -55,23 +77,35 @@ export default function ProfilePage() {
       lastName: user.lastName,
       username: user.username,
       email: user.email,
+      avatarUrl: user.avatarUrl ?? "",
     });
   }, [user]);
 
   useEffect(() => {
-    if (!token) {
+    if (!token || !user) {
       setLoading(false);
       return;
     }
 
-    getMyRecipes(token)
-      .then(setRecipes)
+    Promise.all([
+      getMyRecipes(token),
+      getUserProfile(user.id, token),
+      getFollowingUsers(token),
+      getNotifications(token),
+    ])
+      .then(([recipeItems, summary, following, notificationResponse]) => {
+        setRecipes(recipeItems);
+        setProfileSummary(summary);
+        setFollowingUsers(following);
+        setNotifications(notificationResponse.items);
+        setUnreadCount(notificationResponse.unreadCount);
+      })
       .catch((err) => {
         setRecipeError(t("cannotLoadUserRecipes"));
         showApiError(err, t("cannotLoadUserRecipes"));
       })
       .finally(() => setLoading(false));
-  }, [showApiError, token, t]);
+  }, [showApiError, token, t, user]);
 
   async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -82,6 +116,14 @@ export default function ProfilePage() {
     try {
       const auth = await updateMyProfile(profileForm, token);
       saveAuth(auth);
+      setProfileSummary((current) =>
+        current
+          ? {
+              ...current,
+              ...auth.user,
+            }
+          : current,
+      );
       showSuccess(t("profileUpdated"));
     } catch (err) {
       showApiError(err, t("profileUpdateFailed"));
@@ -126,7 +168,6 @@ export default function ProfilePage() {
     setDeleting(true);
     try {
       await deleteRecipe(deleteId, token);
-      // Refresh the recipes list from the server
       const updatedRecipes = await getMyRecipes(token);
       setRecipes(updatedRecipes);
       setDeleteId(null);
@@ -139,10 +180,62 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleMarkNotificationRead(notificationId: string) {
+    if (!token) return;
+
+    setBusyNotificationId(notificationId);
+    try {
+      const updated = await markNotificationRead(notificationId, token);
+      setNotifications((current) => current.map((item) => (item.id === notificationId ? updated : item)));
+      setUnreadCount((current) => Math.max(0, current - 1));
+      dispatchNotificationsChanged();
+    } catch (err) {
+      showApiError(err, t("notificationReadFailed"));
+    } finally {
+      setBusyNotificationId(null);
+    }
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    if (!token || unreadCount === 0) return;
+
+    setMarkingAllRead(true);
+    try {
+      await markAllNotificationsRead(token);
+      setNotifications((current) => current.map((item) => ({ ...item, isRead: true })));
+      setUnreadCount(0);
+      dispatchNotificationsChanged();
+      showSuccess(t("notificationsMarkedRead"));
+    } catch (err) {
+      showApiError(err, t("notificationReadFailed"));
+    } finally {
+      setMarkingAllRead(false);
+    }
+  }
+
+  function getNotificationTitle(notification: UserNotification) {
+    if (notification.type === "comment") {
+      return t("notificationCommentTitle");
+    }
+    if (notification.type === "followed_author_post") {
+      return t("notificationFollowedPostTitle");
+    }
+    if (notification.type === "follow") {
+      return t("notificationFollowTitle");
+    }
+    if (notification.type === "recipe_rated") {
+      return t("notificationRecipeRatedTitle");
+    }
+    if (notification.type === "saved_recipe_updated") {
+      return t("notificationSavedRecipeUpdatedTitle");
+    }
+    return t("notificationRecipeSavedTitle");
+  }
+
   if (!isLoggedIn || !user) {
     return (
       <main className={styles.page}>
-        <section className={styles.card}>
+        <section id="notifications" className={styles.card}>
           <h1>{t("profileNotAvailable")}</h1>
           <div className={styles.actions}>
             <Link href="/login">{t("login")}</Link>
@@ -169,20 +262,21 @@ export default function ProfilePage() {
         <header className={styles.pageHeader}>
           <div>
             <h1>{t("profileTitle")}</h1>
-            <p>
-              {t("profileDescription")}
-            </p>
+            <p>{t("profileDescription")}</p>
           </div>
         </header>
 
         <section className={styles.profileOverview}>
           <article className={styles.profileHeroCard}>
-            <span className={styles.profileAvatar}>
-              {`${user.username}`.slice(0, 1).toUpperCase()}
-            </span>
+            <Avatar
+              name={user.username}
+              avatarUrl={user.avatarUrl}
+              className={styles.profileAvatar}
+            />
             <div>
               <h2>@{user.username}</h2>
               <p>{user.email}</p>
+              <p className={styles.smallMuted}>{t("avatarProfileHint")}</p>
             </div>
           </article>
           <div className={styles.profileStats}>
@@ -191,12 +285,16 @@ export default function ProfilePage() {
               <span>{t("myRecipesSection")}</span>
             </article>
             <article>
-              <strong>{user.isAdmin ? t("yes") : t("no")}</strong>
-              <span>{t("admin")}</span>
+              <strong>{followingUsers.length}</strong>
+              <span>{t("following")}</span>
             </article>
             <article>
-              <strong>{user.isRecommended ? t("yes") : t("no")}</strong>
-              <span>{t("recommendedAuthor")}</span>
+              <strong>{profileSummary?.followersCount ?? 0}</strong>
+              <span>{t("followers")}</span>
+            </article>
+            <article>
+              <strong>{unreadCount}</strong>
+              <span>{t("notifications")}</span>
             </article>
           </div>
         </section>
@@ -211,7 +309,9 @@ export default function ProfilePage() {
                 <input
                   id="firstName"
                   value={profileForm.firstName}
-                  onChange={(event) => setProfileForm((current) => ({ ...current, firstName: event.target.value }))}
+                  onChange={(event) =>
+                    setProfileForm((current) => ({ ...current, firstName: event.target.value }))
+                  }
                   required
                 />
               </div>
@@ -220,7 +320,9 @@ export default function ProfilePage() {
                 <input
                   id="lastName"
                   value={profileForm.lastName}
-                  onChange={(event) => setProfileForm((current) => ({ ...current, lastName: event.target.value }))}
+                  onChange={(event) =>
+                    setProfileForm((current) => ({ ...current, lastName: event.target.value }))
+                  }
                   required
                 />
               </div>
@@ -229,7 +331,9 @@ export default function ProfilePage() {
                 <input
                   id="username"
                   value={profileForm.username}
-                  onChange={(event) => setProfileForm((current) => ({ ...current, username: event.target.value }))}
+                  onChange={(event) =>
+                    setProfileForm((current) => ({ ...current, username: event.target.value }))
+                  }
                   required
                 />
               </div>
@@ -239,8 +343,22 @@ export default function ProfilePage() {
                   id="email"
                   type="email"
                   value={profileForm.email}
-                  onChange={(event) => setProfileForm((current) => ({ ...current, email: event.target.value }))}
+                  onChange={(event) =>
+                    setProfileForm((current) => ({ ...current, email: event.target.value }))
+                  }
                   required
+                />
+              </div>
+              <div className={styles.field}>
+                <label htmlFor="avatarUrl">{t("avatarUrlLabel")}</label>
+                <input
+                  id="avatarUrl"
+                  type="url"
+                  value={profileForm.avatarUrl}
+                  placeholder={t("avatarUrlPlaceholder")}
+                  onChange={(event) =>
+                    setProfileForm((current) => ({ ...current, avatarUrl: event.target.value }))
+                  }
                 />
               </div>
               <button className={styles.button} type="submit" disabled={profileSaving}>
@@ -259,7 +377,9 @@ export default function ProfilePage() {
                   id="currentPassword"
                   type="password"
                   value={passwordForm.currentPassword}
-                  onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
+                  onChange={(event) =>
+                    setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))
+                  }
                   required
                 />
               </div>
@@ -269,7 +389,9 @@ export default function ProfilePage() {
                   id="newPassword"
                   type="password"
                   value={passwordForm.newPassword}
-                  onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
+                  onChange={(event) =>
+                    setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))
+                  }
                   required
                   minLength={2}
                 />
@@ -280,7 +402,9 @@ export default function ProfilePage() {
                   id="confirmPassword"
                   type="password"
                   value={passwordForm.confirmPassword}
-                  onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                  onChange={(event) =>
+                    setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))
+                  }
                   required
                   minLength={2}
                 />
@@ -294,6 +418,104 @@ export default function ProfilePage() {
         </section>
 
         <section className={styles.card}>
+          <div className={styles.cardFooter}>
+            <div>
+              <h2>{t("following")}</h2>
+              <p className={styles.hint}>{t("followingDescription")}</p>
+            </div>
+          </div>
+          {loading ? <PageSpinner label={t("loadingProfile")} /> : null}
+          {!loading && followingUsers.length === 0 ? (
+            <p className={styles.muted}>{t("noFollowingUsers")}</p>
+          ) : null}
+          {!loading && followingUsers.length > 0 ? (
+            <div className={styles.profileFollowList}>
+              {followingUsers.map((followedUser) => (
+                <div key={followedUser.id} className={styles.profileFollowItem}>
+                  <div className={styles.profileFollowMeta}>
+                    <Avatar
+                      name={followedUser.username}
+                      avatarUrl={followedUser.avatarUrl}
+                      className={styles.profileInlineAvatar}
+                    />
+                    <div>
+                      <strong>@{followedUser.username}</strong>
+                      <p className={styles.smallMuted}>
+                        {followedUser.firstName} {followedUser.lastName}
+                      </p>
+                    </div>
+                  </div>
+                  <Link className={styles.subtleButton} href={`/profile/${followedUser.id}`}>
+                    {t("viewUserProfile")}
+                  </Link>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </section>
+
+        <section className={styles.card}>
+          <div className={styles.cardFooter}>
+            <div>
+              <h2>{t("notifications")}</h2>
+              <p className={styles.hint}>{t("notificationsDescription")}</p>
+            </div>
+            <button
+              type="button"
+              className={styles.subtleButton}
+              onClick={handleMarkAllNotificationsRead}
+              disabled={markingAllRead || unreadCount === 0}
+            >
+              {markingAllRead ? t("saving") : t("markAllAsRead")}
+            </button>
+          </div>
+          {!loading && notifications.length === 0 ? (
+            <p className={styles.muted}>{t("noNotifications")}</p>
+          ) : null}
+          {!loading && notifications.length > 0 ? (
+            <div className={styles.notificationList}>
+              {notifications.map((notification) => (
+                <div key={notification.id} className={styles.notificationItem}>
+                  <div className={styles.notificationMeta}>
+                    {!notification.isRead ? <span className={styles.unreadDot} /> : null}
+                    <Avatar
+                      name={notification.actor.username}
+                      avatarUrl={notification.actor.avatarUrl}
+                      className={styles.profileInlineAvatar}
+                    />
+                    <div>
+                      <strong>
+                        {getNotificationTitle(notification)}
+                      </strong>
+                      <p className={styles.smallMuted}>
+                        @{notification.actor.username}
+                        {notification.recipe ? ` · ${notification.recipe.title}` : ""}
+                      </p>
+                      {notification.commentText ? (
+                        <p>{notification.commentText}</p>
+                      ) : null}
+                      <p className={styles.smallMuted}>
+                        {new Date(notification.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  {!notification.isRead ? (
+                    <button
+                      type="button"
+                      className={styles.subtleButton}
+                      onClick={() => handleMarkNotificationRead(notification.id)}
+                      disabled={busyNotificationId === notification.id}
+                    >
+                      {busyNotificationId === notification.id ? t("saving") : t("markAsRead")}
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </section>
+
+        <section className={styles.card}>
           <h2>{t("myRecipesSection")}</h2>
           {recipeError ? <p className={styles.error}>{recipeError}</p> : null}
           {loading && !recipeError ? <PageSpinner label={t("loadingMyRecipes")} /> : null}
@@ -301,36 +523,38 @@ export default function ProfilePage() {
             recipes.length === 0 ? (
               <p className={styles.muted}>{t("noRecipesAdded")}</p>
             ) : (
-            <div className={styles.grid}>
-              {recipes.map((recipe) => (
-                <div key={recipe.id} className={styles.cardWrapper}>
-                  <Link
-                    className={`${styles.card} ${styles.recipeCard}`}
-                    href={`/recipes/${recipe.id}`}
-                  >
-                    <h3>{recipe.title}</h3>
-                    <p>{recipe.shortDescription}</p>
-                    <RecipeTypeBadges types={recipe.types} maxVisible={3} />
-                    <div className={styles.cardFooter}>
-                      <span className={styles.authorLink}>
-                        <span className={styles.avatar}>
-                          {`${recipe.author.username}`.slice(0, 1).toUpperCase()}
+              <div className={styles.grid}>
+                {recipes.map((recipe) => (
+                  <div key={recipe.id} className={styles.cardWrapper}>
+                    <Link
+                      className={`${styles.card} ${styles.recipeCard}`}
+                      href={`/recipes/${recipe.id}`}
+                    >
+                      <h3>{recipe.title}</h3>
+                      <p>{recipe.shortDescription}</p>
+                      <RecipeTypeBadges types={recipe.types} maxVisible={3} />
+                      <div className={styles.cardFooter}>
+                        <span className={styles.authorLink}>
+                          <Avatar
+                            name={recipe.author.username}
+                            avatarUrl={recipe.author.avatarUrl}
+                            className={styles.avatar}
+                          />
+                          <span>@{recipe.author.username}</span>
                         </span>
-                        <span>@{recipe.author.username}</span>
-                      </span>
-                    </div>
-                  </Link>
-                  <button
-                    className={styles.deleteBtn}
-                    type="button"
-                    title={t("deleteRecipeButton")}
-                    onClick={() => setDeleteId(recipe.id)}
-                  >
-                    🗑
-                  </button>
-                </div>
-              ))}
-            </div>
+                      </div>
+                    </Link>
+                    <button
+                      className={styles.deleteBtn}
+                      type="button"
+                      title={t("deleteRecipeButton")}
+                      onClick={() => setDeleteId(recipe.id)}
+                    >
+                      🗑
+                    </button>
+                  </div>
+                ))}
+              </div>
             )
           ) : null}
         </section>

@@ -56,11 +56,12 @@ export class Recipe {
       {
         userId: { type: Types.ObjectId, ref: 'User', required: true },
         value: { type: Number, min: 1, max: 5, required: true },
+        createdAt: { type: Date, default: Date.now },
       },
     ],
     default: [],
   })
-  ratings?: Array<{ userId: Types.ObjectId; value: number }>;
+  ratings?: Array<{ userId: Types.ObjectId; value: number; createdAt?: Date }>;
 
   @Prop({
     type: [

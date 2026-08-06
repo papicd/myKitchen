@@ -1,14 +1,34 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Avatar } from "../components/Avatar";
+import { getActivityFeed } from "../lib/api";
+import { ActivityFeedItem } from "../lib/types";
 import { useTranslation } from "../lib/useTranslation";
 import { useAuth } from "../lib/auth";
 import styles from "./page.module.scss";
 
 export default function Home() {
   const { t, language } = useTranslation();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, token } = useAuth();
+  const [feedItems, setFeedItems] = useState<ActivityFeedItem[]>([]);
+  const [loadingFeed, setLoadingFeed] = useState(false);
   const isSr = language === "sr";
+
+  useEffect(() => {
+    if (!token || !isLoggedIn) {
+      setFeedItems([]);
+      setLoadingFeed(false);
+      return;
+    }
+
+    setLoadingFeed(true);
+    getActivityFeed(token)
+      .then((items) => setFeedItems(items.slice(0, 6)))
+      .catch(() => setFeedItems([]))
+      .finally(() => setLoadingFeed(false));
+  }, [isLoggedIn, token]);
 
   const heroHighlights = isSr
     ? ["Pametne pretrage", "AI predlozi", "Laka organizacija obroka"]
@@ -136,40 +156,40 @@ export default function Home() {
         </article>
       </section>
 
-      <section className={styles.exploreSection}>
-        <header className={styles.sectionHeader}>
-          <span>{isSr ? "Sve na jednom mestu" : "Everything in one place"}</span>
-          <h2>{isSr ? "Od ideje do tanjira" : "From idea to plate"}</h2>
-        </header>
-        <div className={styles.exploreGrid}>
-          {featureCards.map((card) => (
-            <article key={card.title} className={styles.exploreCard}>
-              <div className={styles.exploreCardTop}>
-                <span>{card.icon}</span>
-                <Link href={card.href}>{card.action}</Link>
-              </div>
-              <h3>{card.title}</h3>
-              <p>{card.description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      {/*<section className={styles.exploreSection}>*/}
+      {/*  <header className={styles.sectionHeader}>*/}
+      {/*    <span>{isSr ? "Sve na jednom mestu" : "Everything in one place"}</span>*/}
+      {/*    <h2>{isSr ? "Od ideje do tanjira" : "From idea to plate"}</h2>*/}
+      {/*  </header>*/}
+      {/*  <div className={styles.exploreGrid}>*/}
+      {/*    {featureCards.map((card) => (*/}
+      {/*      <article key={card.title} className={styles.exploreCard}>*/}
+      {/*        <div className={styles.exploreCardTop}>*/}
+      {/*          <span>{card.icon}</span>*/}
+      {/*          <Link href={card.href}>{card.action}</Link>*/}
+      {/*        </div>*/}
+      {/*        <h3>{card.title}</h3>*/}
+      {/*        <p>{card.description}</p>*/}
+      {/*      </article>*/}
+      {/*    ))}*/}
+      {/*  </div>*/}
+      {/*</section>*/}
 
-      <section className={styles.flowSection}>
-        <header className={styles.sectionHeader}>
-          <span>{isSr ? "Kako radi" : "How it works"}</span>
-          <h2>{isSr ? "Tri jednostavna koraka" : "Three simple steps"}</h2>
-        </header>
-        <div className={styles.flowGrid}>
-          {flow.map((item) => (
-            <article key={item.step} className={styles.flowCard}>
-              <strong>{item.step}</strong>
-              <h3>{item.title}</h3>
-              <p>{item.description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      {/*<section className={styles.flowSection}>*/}
+      {/*  <header className={styles.sectionHeader}>*/}
+      {/*    <span>{isSr ? "Kako radi" : "How it works"}</span>*/}
+      {/*    <h2>{isSr ? "Tri jednostavna koraka" : "Three simple steps"}</h2>*/}
+      {/*  </header>*/}
+      {/*  <div className={styles.flowGrid}>*/}
+      {/*    {flow.map((item) => (*/}
+      {/*      <article key={item.step} className={styles.flowCard}>*/}
+      {/*        <strong>{item.step}</strong>*/}
+      {/*        <h3>{item.title}</h3>*/}
+      {/*        <p>{item.description}</p>*/}
+      {/*      </article>*/}
+      {/*    ))}*/}
+      {/*  </div>*/}
+      {/*</section>*/}
 
       <section className={styles.bottomCta}>
         <div>
@@ -186,6 +206,70 @@ export default function Home() {
           </p>
         </div>
         <Link href={ctaHref}>{ctaLabel}</Link>
+      </section>
+
+      <section className={styles.homeFeedSection}>
+        <header className={styles.sectionHeader}>
+          <span>{isSr ? "Personalizovano" : "Personalized"}</span>
+          <h2>{isSr ? "Aktivnost autora koje pratite" : "Activity from authors you follow"}</h2>
+        </header>
+
+        {!isLoggedIn ? (
+          <article className={styles.homeFeedEmpty}>
+            <p>
+              {isSr
+                ? "Prijavite se i zapratite preporucene autore kako biste videli njihov feed aktivnosti."
+                : "Sign in and follow recommended authors to see their activity feed."}
+            </p>
+            <Link href="/login">{t("login")}</Link>
+          </article>
+        ) : null}
+
+        {isLoggedIn && loadingFeed ? (
+          <article className={styles.homeFeedEmpty}>
+            <p>{t("loading")}</p>
+          </article>
+        ) : null}
+
+        {isLoggedIn && !loadingFeed && feedItems.length === 0 ? (
+          <article className={styles.homeFeedEmpty}>
+            <p>{t("emptyActivityFeed")}</p>
+            <Link href="/recipes">{t("recipes")}</Link>
+          </article>
+        ) : null}
+
+        {isLoggedIn && !loadingFeed && feedItems.length > 0 ? (
+          <div className={styles.homeFeedList}>
+            {feedItems.map((item) => (
+              <article key={item.id} className={styles.homeFeedCard}>
+                <div className={styles.homeFeedMeta}>
+                  <Avatar
+                    name={item.actor.username}
+                    avatarUrl={item.actor.avatarUrl}
+                    className={styles.homeFeedAvatar}
+                  />
+                  <div>
+                    <strong>
+                      {item.type === "recipe_created"
+                        ? t("feedRecipeCreated", { username: item.actor.username })
+                        : item.type === "recipe_rated"
+                          ? t("feedRecipeRated", {
+                              username: item.actor.username,
+                              rating: item.ratingValue ?? "-",
+                            })
+                          : t("feedRecipeCommented", { username: item.actor.username })}
+                    </strong>
+                    <p>
+                      <Link href={`/recipes/${item.recipe.id}`}>{item.recipe.title}</Link>
+                    </p>
+                    <p>{new Date(item.createdAt).toLocaleString()}</p>
+                  </div>
+                </div>
+                <Link href={`/profile/${item.actor.id}`}>{t("viewUserProfile")}</Link>
+              </article>
+            ))}
+          </div>
+        ) : null}
       </section>
     </main>
   );
