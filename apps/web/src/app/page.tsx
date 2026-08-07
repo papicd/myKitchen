@@ -34,60 +34,6 @@ export default function Home() {
     ? ["Pametne pretrage", "AI predlozi", "Laka organizacija obroka"]
     : ["Smart search", "AI suggestions", "Easy meal planning"];
 
-  const featureCards = [
-    {
-      icon: "✨",
-      title: t("recipesTitle"),
-      description: t("recipesBasicInfo"),
-      href: "/recipes",
-      action: t("homeFeature1"),
-    },
-    {
-      icon: "🥬",
-      title: t("findTitle"),
-      description: t("findDescription"),
-      href: isLoggedIn ? "/find" : "/login",
-      action: isLoggedIn ? t("searchButton") : t("login"),
-    },
-    {
-      icon: "🧠",
-      title: t("findWithAITitle"),
-      description: t("findWithAIDescription"),
-      href: isLoggedIn ? "/find-ai" : "/login",
-      action: isLoggedIn ? t("findWithAI") : t("login"),
-    },
-    {
-      icon: "📝",
-      title: t("addRecipeTitle"),
-      description: t("addRecipeReviewTitle"),
-      href: isLoggedIn ? "/add-recipe" : "/signup",
-      action: isLoggedIn ? t("saveRecipeButton") : t("register"),
-    },
-  ];
-
-  const flow = [
-    {
-      step: "01",
-      title: isSr ? "Izaberi namirnice" : "Pick ingredients",
-      description: isSr
-        ? "Unesi ono sto vec imas kod kuce i odmah suzi izbor."
-        : "Enter what you already have at home and narrow choices instantly.",
-    },
-    {
-      step: "02",
-      title: isSr ? "Uporedi recepte" : "Compare recipes",
-      description: isSr
-        ? "Pogledaj ocene, vreme pripreme i preporucene autore."
-        : "Review ratings, prep time, and recommended authors.",
-    },
-    {
-      step: "03",
-      title: isSr ? "Sacuvaj i kuvaj" : "Save and cook",
-      description: isSr
-        ? "Sacuvaj favorite, vrati im se kasnije i podeli svoj recept."
-        : "Save favorites, revisit them later, and share your own recipe.",
-    },
-  ];
 
   const ctaHref = isLoggedIn ? "/recipes" : "/signup";
   const ctaLabel = isLoggedIn ? t("homeFeature1") : t("register");
@@ -112,9 +58,6 @@ export default function Home() {
               <Link href={isLoggedIn ? "/find" : "/login"} className={styles.secondaryCta}>
                 {isLoggedIn ? t("searchButton") : t("login")}
               </Link>
-              <Link href={isLoggedIn ? "/find-ai" : "/signup"} className={styles.ghostCta}>
-                {isLoggedIn ? t("findWithAI") : t("register")}
-              </Link>
             </div>
           </div>
 
@@ -133,26 +76,6 @@ export default function Home() {
             </article>
           </div>
 
-          <aside className={styles.heroAssistant}>
-            <div className={styles.assistantHead}>
-              <span>{t("findWithAITitle")}</span>
-              <strong>{isSr ? "Kuhinjski asistent" : "Kitchen Assistant"}</strong>
-            </div>
-            <ul className={styles.assistantFeed}>
-              <li>
-                <p>{isSr ? "Predlog obroka za danas" : "Meal idea for today"}</p>
-                <span>{isSr ? "Na osnovu piletine i pirinca" : "Based on chicken and rice"}</span>
-              </li>
-              <li>
-                <p>{isSr ? "Brza priprema" : "Quick prep"}</p>
-                <span>{isSr ? "Do 30 minuta" : "Up to 30 minutes"}</span>
-              </li>
-              <li>
-                <p>{isSr ? "Pametna preporuka" : "Smart recommendation"}</p>
-                <span>{isSr ? "Recept sa najboljim ocenama" : "Top-rated recipe match"}</span>
-              </li>
-            </ul>
-          </aside>
         </article>
       </section>
 
@@ -162,7 +85,7 @@ export default function Home() {
       {/*    <h2>{isSr ? "Od ideje do tanjira" : "From idea to plate"}</h2>*/}
       {/*  </header>*/}
       {/*  <div className={styles.exploreGrid}>*/}
-      {/*    {featureCards.map((card) => (*/}
+      {/*    {[][featureCards to be used if this section is uncommented] ({card) => (*/}
       {/*      <article key={card.title} className={styles.exploreCard}>*/}
       {/*        <div className={styles.exploreCardTop}>*/}
       {/*          <span>{card.icon}</span>*/}
@@ -171,7 +94,7 @@ export default function Home() {
       {/*        <h3>{card.title}</h3>*/}
       {/*        <p>{card.description}</p>*/}
       {/*      </article>*/}
-      {/*    ))}*/}
+      {/*    ))} [commented out]*/}
       {/*  </div>*/}
       {/*</section>*/}
 
@@ -181,13 +104,13 @@ export default function Home() {
       {/*    <h2>{isSr ? "Tri jednostavna koraka" : "Three simple steps"}</h2>*/}
       {/*  </header>*/}
       {/*  <div className={styles.flowGrid}>*/}
-      {/*    {flow.map((item) => (*/}
+      {/*    {[][flow to be used if this section is uncommented] ((item) => (*/}
       {/*      <article key={item.step} className={styles.flowCard}>*/}
       {/*        <strong>{item.step}</strong>*/}
       {/*        <h3>{item.title}</h3>*/}
       {/*        <p>{item.description}</p>*/}
       {/*      </article>*/}
-      {/*    ))}*/}
+      {/*    ))} [commented out]*/}
       {/*  </div>*/}
       {/*</section>*/}
 
