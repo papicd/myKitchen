@@ -3,21 +3,23 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { ConfirmDialog } from "../../../components/ConfirmDialog";
-import { PageSpinner } from "../../../components/PageSpinner";
-import { RecipeTypeBadges } from "../../../components/RecipeTypeBadges";
-import { StarRating } from "../../../components/StarRating";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PageSpinner } from "@/components/PageSpinner";
+import { RecipeTypeBadges } from "@/components/RecipeTypeBadges";
+import { StarRating } from "@/components/StarRating";
 import {
+  addRecipeToCollection,
   addRecipeComment,
   deleteRecipe,
+  getRecipeCollections,
   getRecipe,
   getSavedRecipes,
   rateRecipe,
   toggleSaveRecipe,
-} from "../../../lib/api";
-import { useAuth } from "../../../lib/auth";
-import { useTranslation } from "../../../lib/useTranslation";
-import { RecipeDetails } from "../../../lib/types";
+} from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { useTranslation } from "@/lib/useTranslation";
+import { RecipeCollection, RecipeDetails } from "@/lib/types";
 import pageStyles from "../../page.module.scss";
 import styles from "./page.module.scss";
 
@@ -98,6 +100,10 @@ export default function RecipeDetailsPage() {
   const [ratingLoading, setRatingLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [collections, setCollections] = useState<RecipeCollection[]>([]);
+  const [selectedCollectionId, setSelectedCollectionId] = useState("");
+  const [openCollectionPicker, setOpenCollectionPicker] = useState(false);
+  const [addingToCollection, setAddingToCollection] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
 
@@ -121,12 +127,28 @@ export default function RecipeDetailsPage() {
   useEffect(() => {
     if (!token || !isLoggedIn) {
       setIsSaved(false);
+      setCollections([]);
+      setSelectedCollectionId("");
+      setOpenCollectionPicker(false);
       return;
     }
 
-    getSavedRecipes(token)
-      .then((savedRecipes) => setIsSaved(savedRecipes.some((entry) => entry.id === params.id)))
-      .catch(() => setIsSaved(false));
+    Promise.all([getSavedRecipes(token), getRecipeCollections(token)])
+      .then(([savedRecipes, collectionItems]) => {
+        setIsSaved(savedRecipes.some((entry) => entry.id === params.id));
+        setCollections(collectionItems);
+        setSelectedCollectionId((current) => {
+          if (current && collectionItems.some((collection) => collection.id === current)) {
+            return current;
+          }
+
+          return collectionItems[0]?.id ?? "";
+        });
+      })
+      .catch(() => {
+        setIsSaved(false);
+        setCollections([]);
+      });
   }, [isLoggedIn, params.id, token]);
 
   async function handleDelete() {
@@ -180,6 +202,29 @@ export default function RecipeDetailsPage() {
       setSaving(false);
     }
   }
+
+  async function handleAddToCollection() {
+    if (!token || !selectedCollectionId) {
+      return;
+    }
+
+    setAddingToCollection(true);
+    try {
+      const updated = await addRecipeToCollection(selectedCollectionId, params.id, token);
+      setCollections((prev) => prev.map((collection) => (collection.id === selectedCollectionId ? updated : collection)));
+      setIsSaved(true);
+      setOpenCollectionPicker(false);
+      showSuccess(t("recipeAddedToNamedCollection", { name: updated.name }));
+    } catch (err) {
+      showApiError(err, t("collectionAddRecipeFailed"));
+    } finally {
+      setAddingToCollection(false);
+    }
+  }
+
+  const selectedCollectionName = selectedCollectionId
+    ? collections.find((collection) => collection.id === selectedCollectionId)?.name ?? t("chooseCollection")
+    : t("chooseCollection");
 
   async function handleCommentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -252,30 +297,65 @@ export default function RecipeDetailsPage() {
               </div>
               <div className={styles.titleRow}>
                 <h1 className={styles.title}>{recipe.title}</h1>
-                {canDelete ? (
-                  <div className={styles.actions}>
-                    <button className={styles.saveBtn} type="button" onClick={handleSaveToggle}>
-                      {saving ? "..." : isSaved ? t('saved') : t('save')}
-                    </button>
-                    <Link href={`/edit-recipe/${params.id}`} className={styles.editBtn}>
-                      {t('edit')}
-                    </Link>
-                    <button
-                      className={styles.deleteBtn}
-                      type="button"
-                      onClick={() => setShowConfirm(true)}
-                    >
-                      {t('deleteRecipeButton')}
-                    </button>
-                  </div>
-                ) : null}
-                {!canDelete ? (
-                  <div className={styles.actions}>
-                    <button className={styles.saveBtn} type="button" onClick={handleSaveToggle}>
-                      {saving ? "..." : isSaved ? t('saved') : t('save')}
-                    </button>
-                  </div>
-                ) : null}
+                <div className={styles.actions}>
+                  <button className={styles.saveBtn} type="button" onClick={handleSaveToggle} disabled={saving || addingToCollection}>
+                    {saving ? "..." : isSaved ? t('saved') : t('save')}
+                  </button>
+                  {collections.length > 0 ? (
+                    <div className={styles.collectionPickerRow}>
+                      <div className={styles.collectionPicker}>
+                        <button
+                          type="button"
+                          className={styles.collectionPickerTrigger}
+                          onClick={() => setOpenCollectionPicker((current) => !current)}
+                          disabled={addingToCollection}
+                        >
+                          <span>{selectedCollectionName}</span>
+                          <span aria-hidden="true">v</span>
+                        </button>
+                        {openCollectionPicker ? (
+                          <div className={styles.collectionPickerMenu}>
+                            {collections.map((collection) => (
+                              <button
+                                key={collection.id}
+                                type="button"
+                                className={`${styles.collectionPickerItem} ${selectedCollectionId === collection.id ? styles.collectionPickerItemActive : ""}`}
+                                onClick={() => {
+                                  setSelectedCollectionId(collection.id);
+                                  setOpenCollectionPicker(false);
+                                }}
+                              >
+                                {collection.name}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.collectionAddButton}
+                        onClick={() => void handleAddToCollection()}
+                        disabled={!selectedCollectionId || addingToCollection}
+                      >
+                        {addingToCollection ? t("saving") : t("addToCollection")}
+                      </button>
+                    </div>
+                  ) : null}
+                  {canDelete ? (
+                    <>
+                      <Link href={`/edit-recipe/${params.id}`} className={styles.editBtn}>
+                        {t('edit')}
+                      </Link>
+                      <button
+                        className={styles.deleteBtn}
+                        type="button"
+                        onClick={() => setShowConfirm(true)}
+                      >
+                        {t('deleteRecipeButton')}
+                      </button>
+                    </>
+                  ) : null}
+                </div>
               </div>
               <RecipeTypeBadges types={recipe.types} />
               {recipe.description ? <p className={styles.lead}>{recipe.description}</p> : null}

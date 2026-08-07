@@ -6,10 +6,17 @@ import { PageSpinner } from "@/components/PageSpinner";
 import { RecipeTypeBadges } from "@/components/RecipeTypeBadges";
 import { RecipeTypeMultiSelect } from "@/components/RecipeTypeMultiSelect";
 import { StarRating } from "@/components/StarRating";
-import { getRecipeTypes, getRecipesPage, getSavedRecipes, toggleSaveRecipe } from "@/lib/api";
+import {
+  addRecipeToCollection,
+  getRecipeCollections,
+  getRecipeTypes,
+  getRecipesPage,
+  getSavedRecipes,
+  toggleSaveRecipe,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTranslation } from "@/lib/useTranslation";
-import { RecipeBrowseFilters, RecipeListItem, RecipeSort, RecipeType } from "@/lib/types";
+import { RecipeBrowseFilters, RecipeCollection, RecipeListItem, RecipeSort, RecipeType } from "@/lib/types";
 import styles from "../page.module.scss";
 
 const PAGE_SIZE = 12;
@@ -23,6 +30,10 @@ export default function RecipesPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [collections, setCollections] = useState<RecipeCollection[]>([]);
+  const [busyCollectionRecipeId, setBusyCollectionRecipeId] = useState<string | null>(null);
+  const [selectedCollectionByRecipe, setSelectedCollectionByRecipe] = useState<Record<string, string>>({});
+  const [openCollectionPickerRecipeId, setOpenCollectionPickerRecipeId] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [groceriesInput, setGroceriesInput] = useState("");
@@ -139,13 +150,20 @@ export default function RecipesPage() {
   useEffect(() => {
     if (!token || !isLoggedIn) {
       setSavedIds([]);
+      setCollections([]);
+      setSelectedCollectionByRecipe({});
+      setOpenCollectionPickerRecipeId(null);
       return;
     }
 
-    getSavedRecipes(token)
-      .then((saved) => setSavedIds(saved.map((recipe) => recipe.id)))
+    Promise.all([getSavedRecipes(token), getRecipeCollections(token)])
+      .then(([saved, collectionItems]) => {
+        setSavedIds(saved.map((recipe) => recipe.id));
+        setCollections(collectionItems);
+      })
       .catch(() => {
         setSavedIds([]);
+        setCollections([]);
       });
   }, [isLoggedIn, token]);
 
@@ -201,6 +219,40 @@ export default function RecipesPage() {
     } finally {
       setSavingId(null);
     }
+  }
+
+  async function handleAddToCollection(recipeId: string) {
+    if (!token) {
+      return;
+    }
+
+    const collectionId = selectedCollectionByRecipe[recipeId];
+    if (!collectionId) {
+      return;
+    }
+
+    setBusyCollectionRecipeId(recipeId);
+
+    try {
+      const updated = await addRecipeToCollection(collectionId, recipeId, token);
+      setCollections((prev) => prev.map((collection) => (collection.id === collectionId ? updated : collection)));
+      setSavedIds((prev) => (prev.includes(recipeId) ? prev : [...prev, recipeId]));
+      showSuccess(t("recipeAddedToNamedCollection", { name: updated.name }));
+    } catch (err) {
+      showApiError(err, t("collectionAddRecipeFailed"));
+    } finally {
+      setBusyCollectionRecipeId(null);
+    }
+  }
+
+  function getSelectedCollectionName(recipeId: string) {
+    const selectedId = selectedCollectionByRecipe[recipeId];
+    if (!selectedId) {
+      return t("chooseCollection");
+    }
+
+    const selected = collections.find((collection) => collection.id === selectedId);
+    return selected?.name ?? t("chooseCollection");
   }
 
   function resetFilters() {
@@ -369,6 +421,57 @@ export default function RecipesPage() {
                 </div>
               ) : null}
             </div>
+            {isLoggedIn && collections.length > 0 ? (
+              <div className={styles.collectionPickerRow}>
+                <div className={styles.collectionPicker}>
+                  <button
+                    type="button"
+                    className={styles.collectionPickerTrigger}
+                    onClick={() =>
+                      setOpenCollectionPickerRecipeId((current) => (current === recipe.id ? null : recipe.id))
+                    }
+                  >
+                    <span>{getSelectedCollectionName(recipe.id)}</span>
+                    <span aria-hidden="true">▾</span>
+                  </button>
+                  {openCollectionPickerRecipeId === recipe.id ? (
+                    <div className={styles.collectionPickerMenu}>
+                      {collections.map((collection) => (
+                        <button
+                          key={collection.id}
+                          type="button"
+                          className={`${styles.collectionPickerItem} ${
+                            selectedCollectionByRecipe[recipe.id] === collection.id
+                              ? styles.collectionPickerItemActive
+                              : ""
+                          }`}
+                          onClick={() => {
+                            setSelectedCollectionByRecipe((current) => ({
+                              ...current,
+                              [recipe.id]: collection.id,
+                            }));
+                            setOpenCollectionPickerRecipeId(null);
+                          }}
+                        >
+                          {collection.name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  className={styles.collectionAddButton}
+                  onClick={() => {
+                    setOpenCollectionPickerRecipeId(null);
+                    void handleAddToCollection(recipe.id);
+                  }}
+                  disabled={!selectedCollectionByRecipe[recipe.id] || busyCollectionRecipeId === recipe.id}
+                >
+                  {busyCollectionRecipeId === recipe.id ? t("saving") : t("addToCollection")}
+                </button>
+              </div>
+            ) : null}
           </article>
         ))}
       </section>

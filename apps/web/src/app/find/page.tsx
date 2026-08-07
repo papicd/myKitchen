@@ -2,12 +2,19 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { PageSpinner } from "../../components/PageSpinner";
-import { RecipeTypeBadges } from "../../components/RecipeTypeBadges";
-import { getRecipeTypes, getSavedRecipes, searchRecipes, toggleSaveRecipe } from "../../lib/api";
-import { useAuth } from "../../lib/auth";
-import { useTranslation } from "../../lib/useTranslation";
-import { RecipeListItem, RecipeType } from "../../lib/types";
+import { PageSpinner } from "@/components/PageSpinner";
+import { RecipeTypeBadges } from "@/components/RecipeTypeBadges";
+import {
+  addRecipeToCollection,
+  getRecipeCollections,
+  getRecipeTypes,
+  getSavedRecipes,
+  searchRecipes,
+  toggleSaveRecipe,
+} from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { useTranslation } from "@/lib/useTranslation";
+import { RecipeCollection, RecipeListItem, RecipeType } from "@/lib/types";
 import styles from "../page.module.scss";
 
 export default function FindPage() {
@@ -16,6 +23,10 @@ export default function FindPage() {
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [collections, setCollections] = useState<RecipeCollection[]>([]);
+  const [busyCollectionRecipeId, setBusyCollectionRecipeId] = useState<string | null>(null);
+  const [selectedCollectionByRecipe, setSelectedCollectionByRecipe] = useState<Record<string, string>>({});
+  const [openCollectionPickerRecipeId, setOpenCollectionPickerRecipeId] = useState<string | null>(null);
   const [recipeTypes, setRecipeTypes] = useState<RecipeType[]>([]);
   const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
   const [groceriesInput, setGroceriesInput] = useState("");
@@ -29,6 +40,21 @@ export default function FindPage() {
         setRecipeTypes([]);
       });
   }, []);
+
+  useEffect(() => {
+    if (!token || !isLoggedIn) {
+      setCollections([]);
+      setSelectedCollectionByRecipe({});
+      setOpenCollectionPickerRecipeId(null);
+      return;
+    }
+
+    getRecipeCollections(token)
+      .then(setCollections)
+      .catch(() => {
+        setCollections([]);
+      });
+  }, [isLoggedIn, token]);
 
   async function runSearch(query: string, typeIds: string[] = selectedTypeIds) {
     if (!token) {
@@ -94,6 +120,37 @@ export default function FindPage() {
     } finally {
       setSavingId(null);
     }
+  }
+
+  async function handleAddToCollection(recipeId: string) {
+    if (!token) {
+      return;
+    }
+
+    const collectionId = selectedCollectionByRecipe[recipeId];
+    if (!collectionId) {
+      return;
+    }
+
+    setBusyCollectionRecipeId(recipeId);
+
+    try {
+      const updated = await addRecipeToCollection(collectionId, recipeId, token);
+      setCollections((prev) => prev.map((collection) => (collection.id === collectionId ? updated : collection)));
+      setSavedIds((prev) => (prev.includes(recipeId) ? prev : [...prev, recipeId]));
+      showSuccess(t("recipeAddedToNamedCollection", { name: updated.name }));
+    } catch (err) {
+      showApiError(err, t("collectionAddRecipeFailed"));
+    } finally {
+      setBusyCollectionRecipeId(null);
+    }
+  }
+
+  function getSelectedCollectionName(recipeId: string) {
+    const selectedId = selectedCollectionByRecipe[recipeId];
+    if (!selectedId) return t("chooseCollection");
+    const selected = collections.find((collection) => collection.id === selectedId);
+    return selected?.name ?? t("chooseCollection");
   }
 
   function toggleTypeId(typeId: string) {
@@ -221,6 +278,57 @@ export default function FindPage() {
                 </button>
               </div>
             </div>
+            {collections.length > 0 ? (
+              <div className={styles.collectionPickerRow}>
+                <div className={styles.collectionPicker}>
+                  <button
+                    type="button"
+                    className={styles.collectionPickerTrigger}
+                    onClick={() =>
+                      setOpenCollectionPickerRecipeId((current) => (current === recipe.id ? null : recipe.id))
+                    }
+                  >
+                    <span>{getSelectedCollectionName(recipe.id)}</span>
+                    <span aria-hidden="true">▾</span>
+                  </button>
+                  {openCollectionPickerRecipeId === recipe.id ? (
+                    <div className={styles.collectionPickerMenu}>
+                      {collections.map((collection) => (
+                        <button
+                          key={collection.id}
+                          type="button"
+                          className={`${styles.collectionPickerItem} ${
+                            selectedCollectionByRecipe[recipe.id] === collection.id
+                              ? styles.collectionPickerItemActive
+                              : ""
+                          }`}
+                          onClick={() => {
+                            setSelectedCollectionByRecipe((current) => ({
+                              ...current,
+                              [recipe.id]: collection.id,
+                            }));
+                            setOpenCollectionPickerRecipeId(null);
+                          }}
+                        >
+                          {collection.name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  className={styles.collectionAddButton}
+                  onClick={() => {
+                    setOpenCollectionPickerRecipeId(null);
+                    void handleAddToCollection(recipe.id);
+                  }}
+                  disabled={!selectedCollectionByRecipe[recipe.id] || busyCollectionRecipeId === recipe.id}
+                >
+                  {busyCollectionRecipeId === recipe.id ? t("saving") : t("addToCollection")}
+                </button>
+              </div>
+            ) : null}
           </article>
         ))}
       </section>
